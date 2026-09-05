@@ -1,0 +1,27 @@
+name: Vérification MPC Studio
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+      - name: Installer Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Vérifier JavaScript
+        run: node --check app.js
+      - name: Vérifier les fichiers essentiels
+        run: |
+          test -f index.html
+          test -f styles.css
+          test -f supabase-schema.sql
+          test -f supabase-config.js
+          test -f manifest.webmanifest
+          test -f sw.js
