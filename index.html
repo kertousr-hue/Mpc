@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#071018">
+<title>MPC Studio</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+<header class="topbar">
+  <button class="square" id="menuBtn">☰</button>
+  <div class="projectBox"><small>PROJET</small><input id="projectName" value="Night Drive"></div>
+  <button class="square" id="saveLocalBtn" title="Sauvegarder">💾</button>
+  <div class="transport">
+    <button id="stopBtn">■</button>
+    <button id="playBtn" class="play">▶</button>
+    <button id="recBtn" class="rec">●</button>
+    <label class="numberCtl">BPM <input id="bpm" type="number" min="40" max="300" value="92"></label>
+    <button id="tapBtn">TAP</button>
+    <label class="numberCtl">SWING <input id="swing" type="number" min="0" max="70" value="16"><span>%</span></label>
+    <button id="metroBtn">♩ MÉTRO</button>
+    <button id="repeatBtn" class="blueBtn">NOTE REPEAT</button>
+    <button id="fullBtn" class="blueBtn">PLEIN NIVEAU</button>
+  </div>
+  <button id="cloudBtn" class="cloud"><span id="cloudDot"></span> SUPABASE</button>
+</header>
+
+<nav class="bigModes">
+  <button data-mode="sampling" class="active sampling"><b>〽 SAMPLING</b><small>CAPTURER · DÉCOUPER · ASSIGNER</small></button>
+  <button data-mode="sequencing" class="sequencing"><b>▦ SÉQUENÇAGE</b><small>COMPOSER · ORGANISER · ARRANGER</small></button>
+  <button data-mode="creation" class="creation"><b>💡 CRÉATION</b><small>SOUND DESIGN · EFFETS · EXPLORER</small></button>
+</nav>
+
+<section class="workspace">
+  <aside class="panel browser">
+    <div class="tabs"><button class="active">ÉCHANTILLONS</button><button>KITS</button><button>PROJET</button></div>
+    <div class="searchRow"><input id="search" placeholder="Rechercher un échantillon…"></div>
+    <div id="categories" class="chips"></div>
+    <div id="sampleList" class="sampleList"></div>
+    <div class="browserActions">
+      <label class="fileButton">📁 IMPORTER<input id="fileInput" type="file" accept="audio/*" hidden></label>
+      <button id="micBtn">🎤 MICRO</button>
+    </div>
+  </aside>
+
+  <main class="center">
+    <section class="panel padPanel">
+      <div class="padTop">
+        <div id="banks" class="banks">
+          <button data-bank="A" class="active">A</button><button data-bank="B">B</button>
+          <button data-bank="C">C</button><button data-bank="D">D</button>
+        </div>
+        <div class="padModes"><button class="active">JOUER</button><button>SÉLECTION</button><button>ÉDITER</button><button>MUET</button><button>SOLO</button></div>
+      </div>
+      <div id="pads" class="pads"></div>
+      <div class="padFooter">
+        <button id="bankMode" class="active">BANQUE</button>
+        <button>PAD MODE</button>
+        <div class="repeatDiv">
+          <span>RÉPÉTITION</span>
+          <button data-div="2">1/8</button><button data-div="4" class="active">1/16</button><button data-div="8">1/32</button>
+        </div>
+        <button id="levelsBtn">16 NIVEAUX</button>
+      </div>
+    </section>
+
+    <section class="panel sequencer">
+      <div class="seqHead">
+        <b>SÉQUENCEUR</b>
+        <select id="trackSelect"></select>
+        <select id="patternSelect"></select>
+        <button id="copyPatternBtn">COPIER</button>
+        <button id="pastePatternBtn">COLLER</button>
+        <button id="clearPatternBtn">EFFACER</button>
+        <span class="spacer"></span>
+        <label>QUANTIF. <select id="quantize"><option>1/16</option><option>1/8</option><option>1/32</option></select></label>
+      </div>
+      <div id="steps" class="steps"></div>
+      <div class="songRow">
+        <button class="active">PATTERN</button><button>CHANSON</button><button>SCÈNES</button>
+        <span id="seqStatus">16 pas · prêt</span>
+        <button id="loopSeqBtn" class="blueBtn">↻ LECTURE EN BOUCLE</button>
+      </div>
+    </section>
+  </main>
+
+  <aside class="panel editor">
+    <div class="editorTabs"><button class="active">ÉCHANTILLON</button><button>COUCHES</button><button>EFFETS</button><button>MODULATION</button></div>
+    <div class="editorHead"><div><small id="padCode">PAD A01</small><h2 id="padTitle">Kick 01</h2></div><div><button>‹</button><button>›</button></div></div>
+    <canvas id="waveform" width="600" height="150"></canvas>
+    <div class="sampleInfo"><span id="sampleFileName">Factory · Kick 01</span><span id="sampleTime">SYNTH</span></div>
+    <div class="editActions">
+      <button id="trimBtn">✂ DÉCOUPER</button>
+      <button id="sliceBtn">▥ TRANCHER ×4</button>
+      <button id="reverseBtn">↶ REVERSE</button>
+      <button id="assignBtn">▦ ASSIGNER</button>
+    </div>
+    <div class="knobs">
+      <label>Volume<input id="padGain" type="range" min="0" max="150" value="100"><output id="gainOut">100%</output></label>
+      <label>Pitch<input id="padPitch" type="range" min="-12" max="12" value="0"><output id="pitchOut">0 st</output></label>
+      <label>Début<input id="padStart" type="range" min="0" max="95" value="0"><output id="startOut">0%</output></label>
+      <label>Fin<input id="padEnd" type="range" min="5" max="100" value="100"><output id="endOut">100%</output></label>
+    </div>
+    <div class="playModes"><button id="oneShotBtn" class="active">ONE SHOT</button><button id="loopPadBtn">∞ BOUCLE</button><button id="mutePadBtn">MUET</button></div>
+    <section class="creationTools">
+      <h3>CRÉATION</h3>
+      <div class="creationGrid">
+        <button id="autoBeatBtn">🎲 BEAT AUTO</button>
+        <button id="randomKitBtn">✨ KIT ALÉATOIRE</button>
+        <button id="duplicateBtn">⧉ DUPLIQUER PATTERN</button>
+        <button id="clearPadBtn">⌫ EFFACER PAD</button>
+      </div>
+    </section>
+  </aside>
+</section>
+
+<section class="panel bottom">
+  <div><b>MIXEUR</b><span id="status">Prêt</span></div>
+  <label>MASTER <input id="master" type="range" min="0" max="100" value="82"><output id="masterOut">82%</output></label>
+  <button id="saveBtn">SAUVER LOCAL</button>
+  <button id="exportProjectBtn">EXPORT PROJET</button>
+  <label class="fileButton">IMPORT PROJET<input id="projectImport" type="file" accept="application/json" hidden></label>
+  <button id="exportWavBtn">EXPORT WAV</button>
+</section>
+
+<dialog id="cloudDialog">
+  <form method="dialog" class="cloudCard">
+    <div class="dialogHead"><div><small>CLOUD</small><h2>Supabase</h2></div><button value="cancel">✕</button></div>
+    <p>Utilise uniquement une <b>Publishable key</b>. Jamais de clé <b>service_role</b> ou <b>secret</b> dans le navigateur.</p>
+    <label>Project URL<input id="sbUrl" placeholder="https://xxxx.supabase.co"></label>
+    <label>Publishable key<input id="sbKey" placeholder="sb_publishable_…"></label>
+    <button type="button" id="saveSbBtn">ENREGISTRER LA CONFIGURATION</button>
+    <hr>
+    <label>Email<input id="email" type="email"></label>
+    <label>Mot de passe<input id="password" type="password"></label>
+    <div class="row"><button type="button" id="signInBtn">CONNEXION</button><button type="button" id="signUpBtn">CRÉER COMPTE</button><button type="button" id="signOutBtn">DÉCONNEXION</button></div>
+    <div id="authState" class="authState">Supabase non configuré</div>
+    <hr>
+    <div class="row"><button type="button" id="cloudSaveBtn">☁ SAUVER CLOUD</button><button type="button" id="cloudRefreshBtn">↻ ACTUALISER</button></div>
+    <select id="cloudProjects"></select>
+    <button type="button" id="cloudLoadBtn">OUVRIR PROJET CLOUD</button>
+  </form>
+</dialog>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0"></script>
+<script src="supabase-config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
