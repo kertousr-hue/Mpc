@@ -1,9 +1,53 @@
 {
-  "name": "MPC Studio",
+  "name": "MPC Studio — Beat Maker",
   "short_name": "MPC Studio",
+  "description": "Boîte à rythmes, sampling, séquençage et création musicale.",
+  "id": "./",
   "start_url": "./",
+  "scope": "./",
+  "lang": "fr",
+  "dir": "ltr",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#050a0f",
   "theme_color": "#071018",
-  "icons": []
+  "orientation": "any",
+  "categories": ["music", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Sampling",
+      "short_name": "Sampling",
+      "description": "Capturer, découper et assigner des samples",
+      "url": "./?mode=sampling",
+      "icons": [{"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"}]
+    },
+    {
+      "name": "Séquençage",
+      "short_name": "Séquenceur",
+      "description": "Composer et organiser les patterns",
+      "url": "./?mode=sequencing",
+      "icons": [{"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"}]
+    },
+    {
+      "name": "Création",
+      "short_name": "Création",
+      "description": "Sound design et outils de création",
+      "url": "./?mode=creation",
+      "icons": [{"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"}]
+    }
+  ]
 }
