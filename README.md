@@ -94,3 +94,26 @@ Le service Demucs utilisé est un service public tiers et peut être indisponibl
 ### Licences
 
 Le fait qu'un fichier soit accessible par une API gratuite ne signifie pas qu'il peut être utilisé sans conditions. MPC Studio affiche la licence ou un lien vers la source quand cette information est disponible. Toujours vérifier la licence avant redistribution ou usage commercial.
+
+
+## Installation PWA
+
+MPC Studio est préparé pour être installé comme une application.
+
+### Android / Chrome
+
+1. Ouvrir le site en HTTPS.
+2. Appuyer sur **INSTALLER L’APPLICATION** dans MPC Studio.
+3. Accepter l’installation Android.
+4. L’application apparaît ensuite sur l’écran d’accueil et s’ouvre en mode autonome.
+
+Si le bouton d’installation natif n’est pas proposé, ouvrir le menu **⋮** de Chrome puis choisir **Installer l’application** ou **Ajouter à l’écran d’accueil**.
+
+### Fichiers PWA
+
+- `manifest.webmanifest` : nom, couleurs, icônes, raccourcis Sampling/Séquençage/Création.
+- `icons/icon-192.png` et `icons/icon-512.png` : icônes Android.
+- `pwa.js` : bouton d’installation, détection du mode installé et guide de secours.
+- `sw.js` : cache local et fonctionnement hors ligne des fonctions principales.
+
+L’installation PWA nécessite une origine sécurisée **HTTPS** (ou localhost pendant le développement).
