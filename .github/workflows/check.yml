@@ -19,12 +19,19 @@ jobs:
         run: |
           node --check app.js
           node --check api-services.js
+          node --check pwa.js
       - name: Vérifier les fichiers essentiels
         run: |
           test -f index.html
           test -f styles.css
           test -f api-services.js
+          test -f pwa.js
+          test -f icons/icon-192.png
+          test -f icons/icon-512.png
           test -f supabase-schema.sql
           test -f supabase-config.js
           test -f manifest.webmanifest
           test -f sw.js
+
+      - name: Vérifier le manifeste PWA
+        run: node -e "JSON.parse(require('fs').readFileSync('manifest.webmanifest','utf8')); console.log('manifest OK')"
