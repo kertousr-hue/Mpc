@@ -17,3 +17,36 @@ button,input,select,.fileButton{font:inherit;color:var(--text);border:1px solid 
 dialog{border:0;background:transparent}dialog::backdrop{background:#000a;backdrop-filter:blur(5px)}.cloudCard{width:min(560px,92vw);display:grid;gap:9px;background:#09131b;border:1px solid #27475c;border-radius:12px;padding:16px;box-shadow:0 30px 80px #000b}.cloudCard label{display:grid;gap:5px;color:#91a8b8;font-size:12px}.cloudCard input,.cloudCard select{width:100%}.dialogHead{display:flex;justify-content:space-between}.dialogHead h2{margin:0}.dialogHead button{width:40px}.cloudCard p{font-size:12px;color:#91a7b6}.cloudCard .row{display:flex;gap:7px;flex-wrap:wrap}.authState{font-size:12px;color:#8fa9ba;border:1px solid #1a3547;padding:9px;border-radius:6px}
 @media(max-width:1120px){.topbar{grid-template-columns:45px 1fr 45px}.transport{grid-column:1/-1}.cloud{grid-column:3}.workspace{grid-template-columns:240px 1fr}.editor{grid-column:1/-1;min-height:auto}.editorTabs{max-width:500px}.pads{max-height:none}.browser{min-height:610px}.sampleList{height:475px}}
 @media(max-width:760px){body{padding:4px}.topbar{position:static}.projectBox{min-width:0}.transport{justify-content:flex-start;overflow:auto;flex-wrap:nowrap;padding-bottom:2px}.transport button,.numberCtl{flex:0 0 auto}.cloud{font-size:10px;padding:5px}.bigModes{grid-template-columns:1fr}.workspace{grid-template-columns:1fr}.browser{order:2;min-height:auto}.sampleList{height:310px}.center{order:1}.editor{order:3}.pads{gap:6px;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,1fr);aspect-ratio:1/1}.pad{min-width:0;min-height:0;padding:8px}.pad .name{font-size:12px}.padTop{display:grid}.padModes{overflow:auto}.padModes button{flex:0 0 auto}.banks button{flex:1;min-width:0}.padFooter{overflow:auto}.padFooter>*{flex:0 0 auto!important}.steps{gap:3px}.step{min-height:48px}.seqHead select,.seqHead button{font-size:10px}.songRow{overflow:auto}.songRow>*{flex:0 0 auto}.bottom{display:grid;grid-template-columns:1fr 1fr}.bottom>div{grid-column:1/-1}.knobs{grid-template-columns:1fr 1fr}.editActions{grid-template-columns:1fr 1fr}}
+
+
+/* Centre API gratuites */
+.apiCard{width:min(980px,96vw);max-height:90vh;overflow:auto;display:grid;gap:10px;background:#09131b;border:1px solid #27475c;border-radius:12px;padding:16px;box-shadow:0 30px 80px #000b}
+.apiNotice{font-size:12px;color:#9ab0bf;background:#0c1a25;border:1px solid #1e3b4e;border-radius:7px;padding:10px}
+.apiProviders{display:grid;grid-template-columns:repeat(7,minmax(105px,1fr));gap:7px}
+.apiProviders button{display:grid;gap:2px;padding:9px 7px}
+.apiProviders b{font-size:12px}
+.apiProviders small{font-size:9px;color:#7f98a9}
+.apiSearch{display:grid;grid-template-columns:1fr auto;gap:7px}
+.apiSearch input{width:100%}
+.apiProviderInfo{font-size:11px;color:#8fa8b8;padding:7px 2px}
+.apiKeyBadge{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;border:1px solid #8a6c18;color:#ffd76a;font-size:9px}
+.apiResults{display:grid;gap:6px;max-height:450px;overflow:auto}
+.apiResult{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border:1px solid #193446;background:#0b1720;border-radius:8px;padding:9px}
+.apiResultMain{display:grid;gap:3px;min-width:0}
+.apiResultMain b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.apiResultMain small{font-size:10px;color:#829aab}
+.apiLicense{font-size:9px;color:#b6c6d1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.apiResultActions{display:flex;gap:5px;align-items:center}
+.apiResultActions button{min-height:32px;padding:5px 8px;font-size:10px}
+.apiTools{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.apiTool{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;border:1px solid #1d394b;border-radius:8px;padding:12px;background:#0a161f}
+.apiTool div{display:grid;gap:3px}.apiTool small{color:#819aab;font-size:10px}
+.apiSettings{border:1px solid #1b3749;border-radius:8px;padding:10px}
+.apiSettings summary{cursor:pointer;color:#8fd4f7;font-weight:700}
+.apiSettings label{display:grid;gap:5px;margin-top:8px;font-size:11px;color:#8da6b7}
+.apiSettings input{width:100%}
+.apiSettings button{margin-top:8px}
+.apiHidden{display:none!important}
+.apiLoading,.apiEmpty{padding:18px;text-align:center;color:#7891a2;border:1px dashed #1d3c50;border-radius:8px}
+@media(max-width:900px){.apiProviders{grid-template-columns:repeat(3,1fr)}.apiTools{grid-template-columns:1fr}}
+@media(max-width:600px){.apiProviders{grid-template-columns:repeat(2,1fr)}.apiSearch{grid-template-columns:1fr}.apiResult{grid-template-columns:1fr}.apiResultActions{justify-content:flex-start;flex-wrap:wrap}}
