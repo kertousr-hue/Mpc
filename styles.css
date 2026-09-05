@@ -50,3 +50,72 @@ dialog{border:0;background:transparent}dialog::backdrop{background:#000a;backdro
 .apiLoading,.apiEmpty{padding:18px;text-align:center;color:#7891a2;border:1px dashed #1d3c50;border-radius:8px}
 @media(max-width:900px){.apiProviders{grid-template-columns:repeat(3,1fr)}.apiTools{grid-template-columns:1fr}}
 @media(max-width:600px){.apiProviders{grid-template-columns:repeat(2,1fr)}.apiSearch{grid-template-columns:1fr}.apiResult{grid-template-columns:1fr}.apiResultActions{justify-content:flex-start;flex-wrap:wrap}}
+
+
+/* Installation PWA */
+.installPwaBtn{
+  border-color:#16713d!important;
+  color:#a6ffc5!important;
+  background:linear-gradient(180deg,#123422,#0a1e14)!important;
+  box-shadow:0 0 16px #18ee7830;
+  font-weight:800;
+}
+.installPwaBtn:hover{border-color:#26d56f!important;box-shadow:0 0 22px #18ee7850}
+.installCard{
+  width:min(520px,92vw);
+  display:grid;
+  gap:14px;
+  background:#09131b;
+  border:1px solid #27475c;
+  border-radius:14px;
+  padding:18px;
+  box-shadow:0 30px 80px #000b;
+}
+.installHero{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding:12px;
+  border:1px solid #1b3849;
+  border-radius:10px;
+  background:#0b1821;
+}
+.installHero img{border-radius:20%;box-shadow:0 0 18px #17b6ff30}
+.installHero div{display:grid;gap:4px}
+.installHero b{font-size:18px}
+.installHero span{font-size:11px;color:#8ca4b5}
+.installInstructions{
+  font-size:13px;
+  line-height:1.55;
+  color:#a7bac7;
+  border:1px solid #1a3547;
+  border-radius:9px;
+  padding:12px;
+}
+.installInstructions b{color:#e8f5fc}
+.installInstructions ol{margin:8px 0 0;padding-left:22px}
+.installInstructions li{margin:5px 0}
+.installPrimary{
+  border-color:#1b8f4d!important;
+  color:#baffce!important;
+  background:linear-gradient(180deg,#155e35,#0b3420)!important;
+  font-weight:900;
+  min-height:48px;
+}
+body.offline::before{
+  content:"HORS LIGNE";
+  position:fixed;
+  right:10px;
+  bottom:10px;
+  z-index:99;
+  padding:6px 9px;
+  border-radius:999px;
+  background:#5b2d16;
+  border:1px solid #b86f38;
+  color:#ffd7b8;
+  font-size:10px;
+  font-weight:800;
+}
+@media(max-width:760px){
+  .installPwaBtn{grid-column:1/-1}
+}
