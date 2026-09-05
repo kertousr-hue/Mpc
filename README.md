@@ -67,3 +67,30 @@ Ne jamais placer une `service_role`, une secret key ou un mot de passe dans le c
 ## Samples Factory
 
 Les 128 sons Factory sont synthétisés par le moteur Web Audio au moment de la lecture. Ils sont originaux et n'embarquent aucune banque commerciale protégée.
+
+
+## API gratuites intégrées
+
+Un bouton **API GRATUITES** est disponible dans l'application.
+
+Services ajoutés :
+
+- **Openverse** — recherche audio sous licence ouverte, sans clé obligatoire.
+- **Wikimedia Commons** — sons et fichiers audio libres avec métadonnées de licence.
+- **Internet Archive** — recherche dans les archives audio publiques.
+- **MusicBrainz** — métadonnées de morceaux, artistes et enregistrements.
+- **Freesound** — recherche de samples avec une clé API gratuite personnelle.
+- **Demucs** — séparation d'un sample utilisateur en Drums, Bass, Vocals et Other via le service public de démonstration.
+- **Basic Pitch** — conversion audio vers MIDI via un serveur Basic Pitch auto-hébergé configuré par l'utilisateur.
+
+### Freesound
+
+La clé Freesound n'est jamais enregistrée dans GitHub. Elle est stockée localement dans le navigateur via l'écran **Configuration** du centre API.
+
+### Demucs
+
+Le service Demucs utilisé est un service public tiers et peut être indisponible ou limité. Pour une application de production, il est recommandé d'auto-héberger Demucs.
+
+### Licences
+
+Le fait qu'un fichier soit accessible par une API gratuite ne signifie pas qu'il peut être utilisé sans conditions. MPC Studio affiche la licence ou un lien vers la source quand cette information est disponible. Toujours vérifier la licence avant redistribution ou usage commercial.
