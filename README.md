@@ -1,36 +1,69 @@
-# BeatBox Studio V4
+# MPC Studio
 
-## Nouveautés
-- Interface repensée avec 16 pads 4×4 bien centrés.
-- 3 modes : Sampling, Séquençage, Création.
-- Bibliothèque Factory de 128 samples originaux : kicks, snares, claps, hats, open hats, percussions, toms, cymbals, basses, synthés et FX/Vox.
-- Import de samples personnels.
-- Enregistrement micro.
-- Slice/Chop ×4, pitch, trim start/end, reverse.
+Application web/PWA de production musicale inspirée du workflow d'un sampler autonome, avec un design original.
+
+## Fonctionnalités
+
+- 16 pads tactiles bien centrés.
 - 4 banques A/B/C/D = 64 pads.
-- 8 patterns, séquenceur 16 pas, Note Repeat, Full Level, Tap Tempo, Swing.
-- Générateur de beat automatique.
-- Sauvegarde locale, import/export projet, export WAV.
-- Connexion Supabase : Auth, projets Cloud, Storage privé pour samples personnels.
+- 3 espaces : **Sampling**, **Séquençage**, **Création**.
+- **128 sons Factory originaux générés directement par le moteur audio** :
+  - 16 kicks
+  - 16 snares
+  - 8 claps
+  - 16 hi-hats
+  - 8 open hats
+  - 16 percussions
+  - 8 toms
+  - 8 cymbales
+  - 12 basses
+  - 12 synthés
+  - 8 FX/Vox
+- Import WAV/MP3/audio.
+- Enregistrement micro.
+- Slice ×4.
+- Pitch, volume, trim début/fin, loop et reverse pour les samples utilisateur.
+- 8 patterns.
+- Séquenceur 16 pas.
+- Note Repeat, Full Level, Tap Tempo, Swing et métronome.
+- Beat automatique et kit aléatoire.
+- Sauvegarde locale.
+- Import/export projet JSON.
+- Export WAV du pattern courant.
+- PWA installable.
+- Connexion Supabase pour Auth, projets Cloud et stockage privé des samples utilisateur.
 
-## Démarrage local
-La bibliothèque Factory utilise des fichiers WAV locaux. Ouvre l'application via HTTP/HTTPS.
+## Lancer le projet
 
-Exemple avec Python :
-`python -m http.server 8080`
+Il faut le servir en HTTP/HTTPS.
 
-Puis ouvre :
+Exemple :
+
+```bash
+python -m http.server 8080
+```
+
+Puis ouvrir :
+
 `http://localhost:8080`
 
 ## Supabase
-1. Crée un NOUVEAU projet Supabase dédié à BeatBox Studio.
-2. Exécute `supabase-schema.sql`.
-3. Dans l'application, appuie sur `SUPABASE`.
-4. Renseigne le Project URL et uniquement la Publishable key (`sb_publishable_...`).
-5. Crée un compte ou connecte-toi.
-6. Utilise `SAUVEGARDER CLOUD`.
 
-Ne mets jamais de secret key ou de service_role key dans le navigateur.
+Le dépôt ne contient **aucune clé secrète**.
 
-## Samples
-Les 128 sons Factory de cette V4 ont été synthétisés spécialement pour cette application et sont fournis comme sons originaux. Ils ne copient pas de banques commerciales.
+1. Créer un projet Supabase séparé pour MPC Studio.
+2. Exécuter `supabase-schema.sql`.
+3. Ouvrir l'application et appuyer sur **SUPABASE**.
+4. Saisir le Project URL et uniquement une **Publishable key**.
+5. Créer un compte ou se connecter.
+6. Utiliser **SAUVER CLOUD**.
+
+Le schéma active RLS sur les projets et limite les fichiers du bucket `music-samples` au dossier de chaque utilisateur.
+
+## Sécurité
+
+Ne jamais placer une `service_role`, une secret key ou un mot de passe dans le code du navigateur.
+
+## Samples Factory
+
+Les 128 sons Factory sont synthétisés par le moteur Web Audio au moment de la lecture. Ils sont originaux et n'embarquent aucune banque commerciale protégée.
