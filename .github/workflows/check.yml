@@ -16,11 +16,14 @@ jobs:
         with:
           node-version: "22"
       - name: Vérifier JavaScript
-        run: node --check app.js
+        run: |
+          node --check app.js
+          node --check api-services.js
       - name: Vérifier les fichiers essentiels
         run: |
           test -f index.html
           test -f styles.css
+          test -f api-services.js
           test -f supabase-schema.sql
           test -f supabase-config.js
           test -f manifest.webmanifest
