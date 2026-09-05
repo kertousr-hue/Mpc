@@ -1,0 +1,9 @@
+{
+  "name": "MPC Studio",
+  "short_name": "MPC Studio",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#050a0f",
+  "theme_color": "#071018",
+  "icons": []
+}
