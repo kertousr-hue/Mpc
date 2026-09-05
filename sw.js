@@ -1,5 +1,5 @@
 const CACHE='mpc-studio-v1';
-const SHELL=['./','./index.html','./styles.css','./app.js','./supabase-config.js','./manifest.webmanifest'];
+const SHELL=['./','./index.html','./styles.css','./app.js','./api-services.js','./supabase-config.js','./manifest.webmanifest'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch',e=>{
