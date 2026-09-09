@@ -115,7 +115,7 @@ function stopRepeat(){if(repeatTimer){clearInterval(repeatTimer);repeatTimer=nul
 
 function renderEditor(){
  const p=selected(),s=p.sample?.kind==='factory'?FACTORY[p.sample.factoryIndex]:null;
- $('padCode').textContent='PAD '+p.id;$('padTitle').textContent=p.name;const meta=p.externalMeta||null;$('sampleFileName').textContent=s?('Factory · '+s.name):(p.userBlob?((meta&&meta.instrument?'Réel · '+meta.instrument:'Utilisateur')+' · '+p.name):'Aucun sample');$('sampleFileName').title=meta?[meta.creator,meta.license,meta.source].filter(Boolean).join(' · '):'';
+ $('padCode').textContent='PAD '+p.id;$('padTitle').textContent=p.name;const meta=p.externalMeta||null;$('sampleFileName').textContent=s?('Factory · '+s.name):(p.userBlob?((meta&&meta.instrument?'Réel · '+meta.instrument:(meta&&meta.editable?'WAV éditable':'Utilisateur'))+' · '+p.name):'Aucun sample');$('sampleFileName').title=meta?[meta.creator,meta.license,meta.source].filter(Boolean).join(' · '):'';
  $('sampleTime').textContent=s?'SYNTH':p.buffer?(p.buffer.duration.toFixed(2)+' s'):'VIDE';
  $('padGain').value=Math.round(p.gain*100);$('gainOut').textContent=Math.round(p.gain*100)+'%';$('padPitch').value=p.pitch;$('pitchOut').textContent=p.pitch+' st';
  $('padStart').value=Math.round(p.start*100);$('startOut').textContent=Math.round(p.start*100)+'%';$('padEnd').value=Math.round(p.end*100);$('endOut').textContent=Math.round(p.end*100)+'%';
