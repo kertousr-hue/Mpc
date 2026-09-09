@@ -1,4 +1,4 @@
-const CACHE = 'mpc-studio-v7-oriental-real';
+const CACHE = 'mpc-studio-v8-factory-editable';
 const SHELL = [
   './',
   './index.html',
