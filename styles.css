@@ -146,3 +146,8 @@ body[data-mode="creation"] .workspace{grid-template-columns:minmax(500px,1fr) mi
  body[data-mode="creation"] .workspace,
  body[data-mode="sequencing"] .workspace{grid-template-columns:1fr}
 }
+
+.realKit{background:linear-gradient(90deg,#2b1d08aa,#0b1720);border:1px solid #6d4b12;border-radius:8px;margin:6px 0;padding:10px 7px}
+.realKit strong{color:#ffd47a}
+.realKit .sampleWave{background:linear-gradient(90deg,#9a5c0e,#ffb62e33)}
+.realKit button{border-color:#8f6319;color:#ffe4a5;font-weight:800}
