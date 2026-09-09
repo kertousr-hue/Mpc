@@ -141,3 +141,8 @@ body[data-mode="creation"] .workspace{grid-template-columns:minmax(500px,1fr) mi
  body[data-mode="creation"] .workspace,
  body[data-mode="sequencing"] .workspace{grid-template-columns:1fr}
 }
+
+@media(max-width:1120px){
+ body[data-mode="creation"] .workspace,
+ body[data-mode="sequencing"] .workspace{grid-template-columns:1fr}
+}
