@@ -14,6 +14,8 @@ const DEFAULT_NAMES=['Kick 01','Snare 01','Hi-Hat 01','Perc 01','Clap 01','Rim',
 let audioCtx=null, masterGain=null, isPlaying=false, recArmed=false, metro=false, fullLevel=false, noteRepeat=false;
 let bank='A', selectedPad='A01', selectedTrack=0, patternIndex=0, playStep=0, timer=null, nextStepTime=0, repeatDiv=4;
 let tapTimes=[], clipboard=null, currentMode='sampling', sb=null, sbUser=null, cloudRows=[];
+let padMode='play', levelsMode=false, levelsBasePad='A01', loopSequence=true, lastPreviewSample=null, browserTab='samples';
+const activeSources=new Set(), soloPads=new Set();
 const decodedCache=new Map();
 
 function factoryIndexByName(name){const i=FACTORY.findIndex(x=>x.name===name);return Math.max(0,i)}
@@ -44,6 +46,9 @@ function clamp(v,a,b){return Math.min(b,Math.max(a,v))}
 function rateFromPitch(st){return Math.pow(2,st/12)}
 function stepDuration(){return 60/(+$('bpm').value||92)/4}
 function seeded(n){let x=Math.sin(n*999.17)*43758.5453;return x-Math.floor(x)}
+function trackSource(src){activeSources.add(src);const old=src.onended;src.onended=()=>{activeSources.delete(src);if(typeof old==='function')old()};return src}
+function stopAllSources(){for(const src of [...activeSources]){try{src.stop()}catch(e){}activeSources.delete(src)}stopRepeat()}
+function isPadAudible(id){const p=pads[id];return !!p&&!p.muted&&(soloPads.size===0||soloPads.has(id))}
 
 function createNoise(ac,seconds){
  const b=ac.createBuffer(1,Math.max(1,Math.floor(ac.sampleRate*seconds)),ac.sampleRate),d=b.getChannelData(0);
@@ -53,12 +58,12 @@ function gainEnv(ac,dest,time,vol,decay){
  const g=ac.createGain(); g.gain.setValueAtTime(Math.max(.0001,vol),time); g.gain.exponentialRampToValueAtTime(.0001,time+decay); g.connect(dest); return g;
 }
 function oscHit(ac,dest,time,type,freq,endFreq,vol,decay){
- const o=ac.createOscillator(),g=gainEnv(ac,dest,time,vol,decay); o.type=type;o.frequency.setValueAtTime(freq,time);
+ const o=trackSource(ac.createOscillator()),g=gainEnv(ac,dest,time,vol,decay); o.type=type;o.frequency.setValueAtTime(freq,time);
  if(endFreq) o.frequency.exponentialRampToValueAtTime(Math.max(1,endFreq),time+Math.min(decay*.75,.25));
  o.connect(g);o.start(time);o.stop(time+decay+.03);
 }
 function noiseHit(ac,dest,time,vol,decay,filterType='highpass',freq=4000,q=.7){
- const s=ac.createBufferSource(),f=ac.createBiquadFilter(),g=gainEnv(ac,dest,time,vol,decay);
+ const s=trackSource(ac.createBufferSource()),f=ac.createBiquadFilter(),g=gainEnv(ac,dest,time,vol,decay);
  s.buffer=createNoise(ac,Math.max(decay,.03));f.type=filterType;f.frequency.value=freq;f.Q.value=q;s.connect(f);f.connect(g);s.start(time);s.stop(time+decay+.03);
 }
 function scheduleFactory(sample,ac,dest,time,vol=1,pitch=0){
@@ -77,24 +82,25 @@ function scheduleFactory(sample,ac,dest,time,vol=1,pitch=0){
 }
 function scheduleUser(p,ac,dest,time,vol=1){
  if(!p.buffer) return;
- const src=ac.createBufferSource(),g=ac.createGain(); src.buffer=p.buffer;src.playbackRate.value=rateFromPitch(p.pitch);g.gain.value=vol*p.gain;src.loop=!!p.loop;src.connect(g);g.connect(dest);
+ const src=trackSource(ac.createBufferSource()),g=ac.createGain(); src.buffer=p.buffer;src.playbackRate.value=rateFromPitch(p.pitch);g.gain.value=vol;src.loop=!!p.loop;src.connect(g);g.connect(dest);
  const dur=p.buffer.duration, st=clamp(p.start,0,.99)*dur, en=clamp(p.end,p.start+.01,1)*dur, playDur=Math.max(.01,(en-st)/src.playbackRate.value);
  if(src.loop){src.loopStart=st;src.loopEnd=en;src.start(time,st)} else {src.start(time,st,playDur)}
 }
 function playPad(id,time=null,dest=null,velocity=1){
- ensureAudio();const p=pads[id];if(!p||p.muted)return;
+ ensureAudio();const p=pads[id];if(!isPadAudible(id))return;
  const ac=dest?.context||audioCtx, out=dest||masterGain, t=time??ac.currentTime, vol=(fullLevel?1:velocity)*p.gain;
  if(p.sample?.kind==='factory') scheduleFactory(FACTORY[p.sample.factoryIndex],ac,out,t,vol,p.pitch);
- else if(p.buffer) scheduleUser(p,ac,out,t,velocity);
+ else if(p.buffer) scheduleUser(p,ac,out,t,vol);
  flashPad(id);
- if(recArmed&&isPlaying&&time===null){patterns[patternIndex][id][playStep]=true;renderSteps()}
+ if(recArmed&&isPlaying&&time===null){let q=playStep;const quant=$('quantize').value;if(quant==='1/8')q=Math.round(q/2)*2%STEPS;patterns[patternIndex][id][q]=true;renderSteps()}
 }
 function flashPad(id){const b=document.querySelector(`.pad[data-id="${id}"]`);if(!b)return;b.classList.add('hit');setTimeout(()=>b.classList.remove('hit'),90)}
 
 function renderPads(){
  const root=$('pads');root.innerHTML='';
- for(let i=0;i<16;i++){const id=padId(bank,i),p=pads[id],b=document.createElement('button');b.className='pad'+(id===selectedPad?' selected':'');b.dataset.id=id;b.innerHTML=`<span class="num">${i+1}</span><span class="name">${escapeHtml(p.name)}</span>`;
- b.addEventListener('pointerdown',e=>{e.preventDefault();selectPad(id);playPad(id);startRepeat(id)});b.addEventListener('pointerup',stopRepeat);b.addEventListener('pointerleave',stopRepeat);root.appendChild(b)}
+ for(let i=0;i<16;i++){const id=padId(bank,i),p=pads[id],b=document.createElement('button');b.className='pad'+(id===selectedPad?' selected':'')+(soloPads.has(id)?' solo':'')+(p.muted?' muted':'');b.dataset.id=id;
+ const level=Math.round((i+1)/16*100);b.innerHTML=levelsMode?`<span class="num">${i+1}</span><span class="name">${level}%</span>`:`<span class="num">${i+1}</span><span class="name">${escapeHtml(p.name)}</span>`;
+ b.addEventListener('pointerdown',e=>{e.preventDefault();if(levelsMode){playPad(levelsBasePad,null,null,(i+1)/16);startRepeat(levelsBasePad);return}if(padMode==='select'||padMode==='edit'){selectPad(id);return}if(padMode==='mute'){p.muted=!p.muted;renderPads();renderEditor();status(p.muted?id+' muet':id+' réactivé');return}if(padMode==='solo'){soloPads.has(id)?soloPads.delete(id):soloPads.add(id);renderPads();status(soloPads.has(id)?id+' en solo':id+' retiré du solo');return}selectPad(id);playPad(id);startRepeat(id)});b.addEventListener('pointerup',stopRepeat);b.addEventListener('pointerleave',stopRepeat);root.appendChild(b)}
 }
 function selectPad(id){selectedPad=id;selectedTrack=Math.max(0,parseInt(id.slice(1),10)-1);renderPads();renderEditor();renderSteps();$('trackSelect').value=selectedTrack}
 let repeatTimer=null;
@@ -122,9 +128,13 @@ function buildLibrary(){
 }
 let activeCategory='Tous';
 function renderLibrary(cat=activeCategory,q=''){activeCategory=cat;q=q.toLowerCase().trim();const root=$('sampleList');root.innerHTML='';FACTORY.filter(s=>(cat==='Tous'||s.category===cat)&&(!q||s.name.toLowerCase().includes(q)||s.category.toLowerCase().includes(q))).forEach(s=>{const row=document.createElement('div');row.className='sample';row.innerHTML=`<div class="sampleWave"></div><div><strong>${escapeHtml(s.name)}</strong><small>${escapeHtml(s.category)} · FACTORY</small></div><button title="Assigner">＋</button>`;row.querySelector('.sampleWave').onclick=()=>previewFactory(s);row.querySelector('button').onclick=()=>assignFactory(s);root.appendChild(row)})}
-function previewFactory(s){ensureAudio();scheduleFactory(s,audioCtx,masterGain,audioCtx.currentTime,.85,0);status('Préécoute '+s.name)}
+function previewFactory(s){lastPreviewSample=s;ensureAudio();scheduleFactory(s,audioCtx,masterGain,audioCtx.currentTime,.85,0);status('Préécoute '+s.name)}
 function assignFactory(s){const p=selected();p.sample={kind:'factory',factoryIndex:FACTORY.indexOf(s)};p.name=s.name;p.buffer=null;p.userBlob=null;p.cloudPath=null;renderPads();renderEditor();status(s.name+' assigné à '+p.id)}
 
+function loadFactoryKit(offset=0){for(let i=0;i<16;i++){const s=FACTORY[(offset+i)%FACTORY.length],p=pads[padId(bank,i)];p.sample={kind:'factory',factoryIndex:(offset+i)%FACTORY.length};p.name=s.name;p.buffer=null;p.userBlob=null;p.cloudPath=null}renderAll();status('Kit chargé sur banque '+bank)}
+function renderKitBrowser(){const root=$('sampleList');$('categories').innerHTML='';root.innerHTML='';[['KIT DRUMS',0],['KIT PERCUS',32],['KIT ELECTRO',64],['KIT SYNTH',96]].forEach(([name,off])=>{const row=document.createElement('div');row.className='sample';row.innerHTML=`<div class="sampleWave"></div><div><strong>${name}</strong><small>16 sons · banque ${bank}</small></div><button>CHARGER</button>`;row.querySelector('button').onclick=()=>loadFactoryKit(off);root.appendChild(row)})}
+function renderProjectBrowser(){const root=$('sampleList');$('categories').innerHTML='';root.innerHTML='';const has=!!localStorage.getItem('mpc-studio-project');const row=document.createElement('div');row.className='sample';row.innerHTML=`<div class="sampleWave"></div><div><strong>Projet local</strong><small>${has?'Sauvegarde disponible':'Aucune sauvegarde'}</small></div><button ${has?'':'disabled'}>OUVRIR</button>`;if(has)row.querySelector('button').onclick=loadLocal;root.appendChild(row)}
+function openMainMenu(){let d=$('mainMenuDialog');if(!d){d=document.createElement('dialog');d.id='mainMenuDialog';d.innerHTML='<div class="cloudCard"><div class="dialogHead"><div><small>MPC STUDIO</small><h2>Menu</h2></div><button id="mainMenuClose">✕</button></div><button id="menuSave">💾 SAUVER LOCAL</button><button id="menuLoad">📂 OUVRIR LOCAL</button><button id="menuStop">■ STOP AUDIO</button><button id="menuCloud">☁ SUPABASE</button></div>';document.body.appendChild(d);$('mainMenuClose').onclick=()=>d.close();$('menuSave').onclick=saveLocal;$('menuLoad').onclick=loadLocal;$('menuStop').onclick=stopPlayback;$('menuCloud').onclick=()=>{$('cloudDialog').showModal();cloudRefresh()}}if(!d.open)d.showModal()}
 function renderTrackSelect(){$('trackSelect').innerHTML='';for(let i=0;i<16;i++){const o=new Option(`${i+1} · ${pads[padId(bank,i)].name}`,i);$('trackSelect').add(o)}$('trackSelect').value=selectedTrack}
 function renderPatternSelect(){$('patternSelect').innerHTML='';for(let i=0;i<PATTERNS;i++)$('patternSelect').add(new Option('Pattern '+(i+1),i));$('patternSelect').value=patternIndex}
 function renderSteps(){
@@ -134,14 +144,15 @@ function renderSteps(){
 }
 function nextSchedulerStep(){
  const base=stepDuration(),sw=clamp(+$('swing').value||0,0,70)/100;let dur=base;if(playStep%2===1)dur*=1+sw*.55;else dur*=1-sw*.55;
- nextStepTime+=dur;playStep=(playStep+1)%STEPS;
+ nextStepTime+=dur;const last=playStep===STEPS-1;playStep=(playStep+1)%STEPS;
+ if(last&&!loopSequence){isPlaying=false;if(timer)clearInterval(timer);timer=null;setTimeout(()=>{$('playBtn').classList.remove('active');renderSteps();status('Lecture terminée')},Math.max(0,dur*1000))}
 }
 function scheduler(){
  if(!isPlaying)return;while(nextStepTime<audioCtx.currentTime+.12){const st=playStep;for(const b of BANKS)for(let i=0;i<16;i++){const id=padId(b,i);if(patterns[patternIndex][id][st])playPad(id,nextStepTime)}
  if(metro&&st%4===0)oscHit(audioCtx,masterGain,nextStepTime,'square',st===0?1200:850,null,.08,.025);nextSchedulerStep()}renderSteps()
 }
 function startPlayback(){ensureAudio();if(isPlaying)return;isPlaying=true;playStep=0;nextStepTime=audioCtx.currentTime+.05;timer=setInterval(scheduler,25);$('playBtn').classList.add('active');status(recArmed?'Enregistrement…':'Lecture')}
-function stopPlayback(){isPlaying=false;if(timer)clearInterval(timer);timer=null;playStep=0;$('playBtn').classList.remove('active');renderSteps();status('Arrêt')}
+function stopPlayback(){isPlaying=false;if(timer)clearInterval(timer);timer=null;playStep=0;stopAllSources();$('playBtn').classList.remove('active');renderSteps();status('Arrêt')}
 
 async function decodeBlob(blob){ensureAudio();return await audioCtx.decodeAudioData((await blob.arrayBuffer()).slice(0))}
 async function importAudio(file){try{const p=selected(),buf=await decodeBlob(file);p.buffer=buf;p.userBlob=file;p.sample={kind:'user'};p.name=file.name.replace(/\.[^.]+$/,'').slice(0,24)||'Sample';p.cloudPath=null;renderPads();renderEditor();status('Sample importé')}catch(e){status('Erreur audio : '+e.message)}}
@@ -152,8 +163,9 @@ async function toggleMic(){
 }
 function sliceSelected(){
  const p=selected();if(!p.buffer){status('Le découpage ×4 nécessite un sample importé ou micro');return}const startIndex=parseInt(p.id.slice(1),10)-1;for(let n=0;n<4;n++){if(startIndex+n>=16)break;const id=padId(bank,startIndex+n),t=pads[id];Object.assign(t,{name:p.name+' '+(n+1),sample:{kind:'user'},buffer:p.buffer,userBlob:p.userBlob,cloudPath:p.cloudPath,start:n/4,end:(n+1)/4,pitch:p.pitch,gain:p.gain})}renderPads();renderEditor();status('Sample découpé sur 4 pads')}
+function trimSelected(){const p=selected();if(!p.buffer){status('Découpage disponible sur les samples importés');return}ensureAudio();const start=Math.floor(p.start*p.buffer.length),end=Math.max(start+1,Math.floor(p.end*p.buffer.length)),len=end-start,b=audioCtx.createBuffer(p.buffer.numberOfChannels,len,p.buffer.sampleRate);for(let ch=0;ch<b.numberOfChannels;ch++)b.copyToChannel(p.buffer.getChannelData(ch).slice(start,end),ch);p.buffer=b;p.userBlob=new Blob([audioBufferToWav(b)],{type:'audio/wav'});p.sample={kind:'user'};p.start=0;p.end=1;p.cloudPath=null;renderEditor();status('Sample découpé définitivement')}
 function reverseSelected(){
- const p=selected();if(!p.buffer){status('Reverse disponible sur les samples importés');return}const b=audioCtx.createBuffer(p.buffer.numberOfChannels,p.buffer.length,p.buffer.sampleRate);for(let ch=0;ch<b.numberOfChannels;ch++){const src=p.buffer.getChannelData(ch),dst=b.getChannelData(ch);for(let i=0;i<src.length;i++)dst[i]=src[src.length-1-i]}p.buffer=b;drawWave();status('Sample inversé')}
+ const p=selected();if(!p.buffer){status('Reverse disponible sur les samples importés');return}ensureAudio();const b=audioCtx.createBuffer(p.buffer.numberOfChannels,p.buffer.length,p.buffer.sampleRate);for(let ch=0;ch<b.numberOfChannels;ch++){const src=p.buffer.getChannelData(ch),dst=b.getChannelData(ch);for(let i=0;i<src.length;i++)dst[i]=src[src.length-1-i]}p.buffer=b;p.userBlob=new Blob([audioBufferToWav(b)],{type:'audio/wav'});p.sample={kind:'user'};p.cloudPath=null;drawWave();status('Sample inversé')}
 function clearPad(){const p=selected();p.sample=null;p.buffer=null;p.userBlob=null;p.cloudPath=null;p.name='Pad '+p.id;p.start=0;p.end=1;p.pitch=0;p.gain=1;renderPads();renderEditor()}
 function randomBeat(){
  const pat=patterns[patternIndex];for(const id of Object.keys(pat))pat[id].fill(false);
@@ -161,7 +173,7 @@ function randomBeat(){
 function randomKit(){for(let i=0;i<16;i++){const id=padId(bank,i),s=FACTORY[Math.floor(Math.random()*FACTORY.length)];pads[id].sample={kind:'factory',factoryIndex:FACTORY.indexOf(s)};pads[id].name=s.name;pads[id].buffer=null;pads[id].userBlob=null}renderPads();renderEditor();renderTrackSelect();status('Kit aléatoire chargé')}
 
 function serializable(includeCloud=true){
- return {version:5,name:$('projectName').value,bpm:+$('bpm').value,swing:+$('swing').value,master:+$('master').value,bank,patternIndex,
+ return {version:6,name:$('projectName').value,bpm:+$('bpm').value,swing:+$('swing').value,master:+$('master').value,bank,patternIndex,
  pads:Object.fromEntries(Object.entries(pads).map(([id,p])=>[id,{id:p.id,name:p.name,gain:p.gain,pitch:p.pitch,start:p.start,end:p.end,muted:p.muted,loop:p.loop,sample:p.sample,cloudPath:includeCloud?p.cloudPath:null}])),
  patterns:patterns.map(p=>Object.fromEntries(Object.entries(p).map(([id,a])=>[id,[...a]])))};
 }
@@ -171,11 +183,16 @@ async function applyProject(d,loadCloudAudio=false){
  bank=BANKS.includes(d.bank)?d.bank:'A';patternIndex=clamp(d.patternIndex||0,0,PATTERNS-1);selectedPad=padId(bank,0);selectedTrack=0;
  if(loadCloudAudio&&sb) await downloadCloudSamples();renderAll()
 }
-function saveLocal(){localStorage.setItem('mpc-studio-project',JSON.stringify(serializable()));status('Projet sauvegardé localement')}
-function loadLocal(){const s=localStorage.getItem('mpc-studio-project');if(s)applyProject(JSON.parse(s)).then(()=>status('Projet local ouvert'))}
+function openAudioDb(){return new Promise((resolve,reject)=>{const r=indexedDB.open('mpc-studio',1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('audio'))r.result.createObjectStore('audio')};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+async function saveAudioDb(){const db=await openAudioDb();await new Promise((resolve,reject)=>{const tx=db.transaction('audio','readwrite'),st=tx.objectStore('audio');st.clear();for(const [id,p] of Object.entries(pads))if(p.userBlob)st.put(p.userBlob,id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}
+async function restoreAudioDb(){const db=await openAudioDb();await Promise.all(Object.keys(pads).map(id=>new Promise((resolve)=>{const r=db.transaction('audio').objectStore('audio').get(id);r.onsuccess=async()=>{if(r.result){pads[id].userBlob=r.result;try{pads[id].buffer=await decodeBlob(r.result);pads[id].sample={kind:'user'}}catch(e){}}resolve()};r.onerror=resolve})));db.close()}
+async function saveLocal(){try{localStorage.setItem('mpc-studio-project',JSON.stringify(serializable()));await saveAudioDb();status('Projet + samples sauvegardés localement')}catch(e){status('Sauvegarde locale : '+e.message)}}
+async function loadLocal(){const raw=localStorage.getItem('mpc-studio-project');if(!raw)return;try{await applyProject(JSON.parse(raw));await restoreAudioDb();renderAll();status('Projet local + samples ouverts')}catch(e){status('Ouverture locale : '+e.message)}}
 function downloadText(name,text,type='application/json'){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000)}
-function exportProject(){downloadText(($('projectName').value||'projet')+'.mpc.json',JSON.stringify(serializable(),null,2))}
-async function importProjectFile(f){try{await applyProject(JSON.parse(await f.text()));status('Projet importé')}catch(e){status('Import impossible : '+e.message)}}
+async function blobToDataUrl(blob){return await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(r.error);r.readAsDataURL(blob)})}
+async function dataUrlToBlob(url){const r=await fetch(url);return await r.blob()}
+async function exportProject(){try{const d=serializable();d.audioFiles={};for(const [id,p] of Object.entries(pads))if(p.userBlob)d.audioFiles[id]=await blobToDataUrl(p.userBlob);downloadText(($('projectName').value||'projet')+'.mpc.json',JSON.stringify(d,null,2));status('Projet + samples exportés')}catch(e){status('Export projet : '+e.message)}}
+async function importProjectFile(f){try{const d=JSON.parse(await f.text());await applyProject(d);if(d.audioFiles){for(const [id,url] of Object.entries(d.audioFiles))if(pads[id]){const blob=await dataUrlToBlob(url);pads[id].userBlob=blob;pads[id].buffer=await decodeBlob(blob);pads[id].sample={kind:'user'}}}renderAll();status('Projet + samples importés')}catch(e){status('Import impossible : '+e.message)}}
 
 async function renderWav(){
  ensureAudio();const bpm=+$('bpm').value||92,dur=60/bpm*4+.5,off=new OfflineAudioContext(2,Math.ceil(audioCtx.sampleRate*dur),audioCtx.sampleRate),mg=off.createGain();mg.gain.value=+$('master').value/100;mg.connect(off.destination);
@@ -233,17 +250,24 @@ function bind(){
  $('padPitch').oninput=e=>{selected().pitch=+e.target.value;$('pitchOut').textContent=e.target.value+' st'};
  $('padStart').oninput=e=>{const p=selected();p.start=Math.min(+e.target.value/100,p.end-.01);$('startOut').textContent=Math.round(p.start*100)+'%';drawWave()};
  $('padEnd').oninput=e=>{const p=selected();p.end=Math.max(+e.target.value/100,p.start+.01);$('endOut').textContent=Math.round(p.end*100)+'%';drawWave()};
- $('loopPadBtn').onclick=()=>{selected().loop=!selected().loop;renderEditor()};$('mutePadBtn').onclick=()=>{selected().muted=!selected().muted;renderEditor()};
- $('sliceBtn').onclick=sliceSelected;$('reverseBtn').onclick=reverseSelected;$('trimBtn').onclick=()=>status('Utilise les curseurs Début / Fin');$('assignBtn').onclick=()=>status('Choisis un son à gauche puis appuie sur ＋');
+ $('oneShotBtn').onclick=()=>{selected().loop=false;renderEditor();$('oneShotBtn').classList.add('active')};$('loopPadBtn').onclick=()=>{selected().loop=!selected().loop;renderEditor();$('oneShotBtn').classList.toggle('active',!selected().loop)};$('mutePadBtn').onclick=()=>{selected().muted=!selected().muted;renderEditor();renderPads()};
+ $('sliceBtn').onclick=sliceSelected;$('reverseBtn').onclick=reverseSelected;$('trimBtn').onclick=trimSelected;$('assignBtn').onclick=()=>{if(lastPreviewSample)assignFactory(lastPreviewSample);else status('Préécoute d’abord un son dans la bibliothèque')};
  $('clearPadBtn').onclick=clearPad;$('autoBeatBtn').onclick=randomBeat;$('randomKitBtn').onclick=randomKit;
- document.querySelectorAll('.bigModes button').forEach(b=>b.onclick=()=>{currentMode=b.dataset.mode;document.querySelectorAll('.bigModes button').forEach(x=>x.classList.remove('active'));b.classList.add('active');status(b.textContent.trim())});
+ $('levelsBtn').onclick=()=>{levelsMode=!levelsMode;levelsBasePad=selectedPad;$('levelsBtn').classList.toggle('active',levelsMode);renderPads();status(levelsMode?'16 niveaux activés sur '+levelsBasePad:'16 niveaux désactivés')};
+ $('loopSeqBtn').onclick=()=>{loopSequence=!loopSequence;$('loopSeqBtn').classList.toggle('active',loopSequence);$('loopSeqBtn').textContent=loopSequence?'↻ LECTURE EN BOUCLE':'→ LECTURE 1 FOIS';status(loopSequence?'Boucle activée':'Lecture unique activée')};$('loopSeqBtn').classList.toggle('active',loopSequence);
+ document.querySelectorAll('.bigModes button').forEach(b=>b.onclick=()=>{currentMode=b.dataset.mode;document.body.dataset.mode=currentMode;document.querySelectorAll('.bigModes button').forEach(x=>x.classList.remove('active'));b.classList.add('active');status(b.textContent.trim())});
  $('saveBtn').onclick=saveLocal;$('saveLocalBtn').onclick=saveLocal;$('exportProjectBtn').onclick=exportProject;$('projectImport').onchange=e=>{if(e.target.files[0])importProjectFile(e.target.files[0]);e.target.value=''};$('exportWavBtn').onclick=renderWav;
  $('cloudBtn').onclick=()=>{$('cloudDialog').showModal();cloudRefresh()};$('saveSbBtn').onclick=async()=>{const url=$('sbUrl').value.trim().replace(/\/$/,''),key=$('sbKey').value.trim();if(!/^https:\/\/.+\.supabase\.co$/.test(url)||!safeKey(key))return $('authState').textContent='URL ou Publishable key invalide';localStorage.setItem('mpc-supabase',JSON.stringify({url,key}));sb=null;sbUser=null;await initSupabase();status('Configuration Supabase enregistrée')};
  $('signInBtn').onclick=async()=>{if(!sb)return;const {error}=await sb.auth.signInWithPassword({email:$('email').value,password:$('password').value});if(error)$('authState').textContent=error.message};
  $('signUpBtn').onclick=async()=>{if(!sb)return;const {error}=await sb.auth.signUp({email:$('email').value,password:$('password').value});$('authState').textContent=error?error.message:'Compte créé. Vérifie ton e-mail si demandé.'};
  $('signOutBtn').onclick=async()=>{if(sb)await sb.auth.signOut()};
  $('cloudSaveBtn').onclick=cloudSave;$('cloudRefreshBtn').onclick=cloudRefresh;$('cloudLoadBtn').onclick=cloudLoad;
+ const padModeBtns=[...document.querySelectorAll('.padModes button')];padModeBtns.forEach((b,i)=>{const modes=['play','select','edit','mute','solo'];b.onclick=()=>{padMode=modes[i]||'play';padModeBtns.forEach(x=>x.classList.remove('active'));b.classList.add('active');status('Mode pad : '+b.textContent.trim())}});
+ const navBtns=document.querySelectorAll('.editorHead>div:last-child button');if(navBtns[0])navBtns[0].onclick=()=>{let i=(parseInt(selectedPad.slice(1),10)-2+16)%16;selectPad(padId(bank,i))};if(navBtns[1])navBtns[1].onclick=()=>{let i=parseInt(selectedPad.slice(1),10)%16;selectPad(padId(bank,i))};
+ const browserTabs=[...document.querySelectorAll('.tabs button')];browserTabs.forEach((b,i)=>b.onclick=()=>{browserTabs.forEach(x=>x.classList.remove('active'));b.classList.add('active');browserTab=['samples','kits','project'][i];if(browserTab==='samples'){buildLibrary();status('Bibliothèque échantillons')}else if(browserTab==='kits'){renderKitBrowser()}else{renderProjectBrowser()}});
+ const editorTabs=[...document.querySelectorAll('.editorTabs button')];editorTabs.forEach((b,i)=>b.onclick=()=>{editorTabs.forEach(x=>x.classList.remove('active'));b.classList.add('active');const names=['Échantillon','Couches','Effets','Modulation'];status(names[i]+(i===0?'':' · réglages avancés non destructifs à venir'))});
+ $('menuBtn').onclick=openMainMenu;
  window.addEventListener('keydown',e=>{if(e.target.matches('input,select'))return;const map='1234qwerasdfzxcv',i=map.indexOf(e.key.toLowerCase());if(i>=0)playPad(padId(bank,i));if(e.code==='Space'){e.preventDefault();isPlaying?stopPlayback():startPlayback()}});
 }
-buildLibrary();renderAll();bind();initSupabase();if(localStorage.getItem('mpc-studio-project'))loadLocal();
+buildLibrary();renderAll();bind();document.body.dataset.mode=currentMode;initSupabase();if(localStorage.getItem('mpc-studio-project'))loadLocal();
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
