@@ -119,3 +119,25 @@ body.offline::before{
 @media(max-width:760px){
   .installPwaBtn{grid-column:1/-1}
 }
+
+
+/* États fonctionnels MPC */
+.pad.muted{opacity:.42;filter:saturate(.45)}
+.pad.muted:after{content:"MUET";position:absolute;top:7px;right:7px;font-size:9px;color:#ff9aa6;border:1px solid #7a3340;border-radius:4px;padding:2px 4px;background:#260d14cc}
+.pad.solo{border-color:var(--amber);box-shadow:0 0 18px #ffb62e66,inset 0 0 0 3px #071018}
+.pad.solo:after{content:"SOLO";position:absolute;top:7px;right:7px;font-size:9px;color:#ffe0a0;border:1px solid #8b6920;border-radius:4px;padding:2px 4px;background:#2a210dcc}
+button:disabled{opacity:.4;cursor:not-allowed;filter:saturate(.3)}
+
+/* Les 3 grands modes affichent réellement des espaces différents */
+body[data-mode="sampling"] .sequencer{display:none}
+body[data-mode="sequencing"] .browser,
+body[data-mode="sequencing"] .editor{display:none}
+body[data-mode="sequencing"] .workspace{grid-template-columns:1fr}
+body[data-mode="creation"] .browser,
+body[data-mode="creation"] .sequencer{display:none}
+body[data-mode="creation"] .workspace{grid-template-columns:minmax(500px,1fr) minmax(330px,420px)}
+
+@media(max-width:760px){
+ body[data-mode="creation"] .workspace,
+ body[data-mode="sequencing"] .workspace{grid-template-columns:1fr}
+}
