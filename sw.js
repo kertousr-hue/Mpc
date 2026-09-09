@@ -1,4 +1,4 @@
-const CACHE = 'mpc-studio-v6-api-fixed';
+const CACHE = 'mpc-studio-v7-oriental-real';
 const SHELL = [
   './',
   './index.html',
@@ -35,7 +35,24 @@ self.addEventListener('fetch', event => {
   if (request.method !== 'GET') return;
 
   const url = new URL(request.url);
-  if (url.origin !== self.location.origin) return;
+  if (url.origin !== self.location.origin) {
+    if (url.hostname === 'upload.wikimedia.org') {
+      event.respondWith(
+        caches.match(request).then(cached =>
+          fetch(request)
+            .then(response => {
+              if (response && response.ok) {
+                const copy = response.clone();
+                caches.open(CACHE).then(cache => cache.put(request, copy));
+              }
+              return response;
+            })
+            .catch(() => cached)
+        )
+      );
+    }
+    return;
+  }
 
   if (request.mode === 'navigate') {
     event.respondWith(
