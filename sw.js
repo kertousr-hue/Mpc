@@ -1,4 +1,4 @@
-const CACHE = 'mpc-studio-v3';
+const CACHE = 'mpc-studio-v4-functional-fixes';
 const SHELL = [
   './',
   './index.html',
