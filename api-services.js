@@ -152,8 +152,10 @@ async function runCustomDemucs(endpoint,blob){
   return {blobs:out,names:['Drums','Bass','Vocals','Other']}
 }
 async function runPublicDemucs(blob){
-  var gr=await import('https://esm.sh/@gradio/client@1.15.0?bundle'),client=await gr.Client.connect('aimuzik/demucs'),api=await client.view_api(),named=(api&&api.named_endpoints)||{},endpoint=named['/demucs_def']?'/demucs_def':Object.keys(named)[0];
-  if(!endpoint)throw new Error('Aucun endpoint Demucs disponible sur le service public');
+  var gr=await import('https://cdn.jsdelivr.net/npm/@gradio/client@2.5.1/dist/index.min.js'),client=await gr.Client.connect('aimuzik/demucs',{status_callback:function(st){if(st&&st.message)apiStatus('Demucs : '+st.message)}}),api=await client.view_api(),named=(api&&api.named_endpoints)||{},unnamed=(api&&api.unnamed_endpoints)||{},endpoint=null;
+  var namedEntries=Object.entries(named),unnamedEntries=Object.entries(unnamed),pick=function(entries,isUnnamed){for(var i=0;i<entries.length;i++){var info=entries[i][1]||{},params=info.parameters||[];if(params.length>=5){var labels=params.map(function(p){return String(p.label||'').toLowerCase()}).join(' ');if(labels.indexOf('model')>=0||labels.indexOf('audio')>=0)return isUnnamed?Number(entries[i][0]):entries[i][0]}}return null};
+  endpoint=named['/demucs_def']?'/demucs_def':pick(namedEntries,false);if(endpoint===null)endpoint=pick(unnamedEntries,true);if(endpoint===null&&namedEntries.length)endpoint=namedEntries[0][0];if(endpoint===null&&unnamedEntries.length)endpoint=Number(unnamedEntries[0][0]);
+  if(endpoint===null||endpoint===undefined)throw new Error('Aucun endpoint Demucs disponible sur le service public');
   var result=await client.predict(endpoint,[gr.handle_file(blob),'htdemucs.yaml','wav',2,'0.25']),data=(result&&result.data)||[],blobs=[];
   for(var i=0;i<data.length&&i<4;i++){var item=data[i],url=item&&typeof item==='object'?(item.url||item.path):item;if(!url){blobs.push(null);continue}if(url.charAt(0)==='/')url='https://aimuzik-demucs.hf.space'+url;var rr=await fetch(url);if(!rr.ok)throw new Error('Téléchargement stem HTTP '+rr.status);blobs.push(await rr.blob())}
   if(!blobs.filter(Boolean).length)throw new Error('Le service public n’a renvoyé aucun stem');
