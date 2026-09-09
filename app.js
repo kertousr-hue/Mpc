@@ -148,10 +148,11 @@ function detectTransientTimes(buffer,count){
  for(let i=lookback;i<env.length-2;i++){let prev=0;for(let k=1;k<=lookback;k++)prev+=env[i-k];prev/=lookback;const score=Math.max(0,env[i]-prev*.9);if(score>maxScore)maxScore=score;scores.push({i,score,amp:env[i]})}
  const candidates=scores.filter(x=>x.score>maxScore*.10&&x.amp>maxEnv*.04).sort((a,b)=>b.score-a.score),picked=[],minGap=Math.max(1,Math.round(buffer.sampleRate*.10/hop));
  for(const c of candidates){if(picked.every(p=>Math.abs(p.i-c.i)>=minGap)){picked.push(c);if(picked.length>=count)break}}
- if(picked.length<count){const byAmp=scores.filter(x=>x.amp>maxEnv*.08).sort((a,b)=>b.amp-a.amp);for(const c of byAmp){if(picked.every(p=>Math.abs(p.i-c.i)>=minGap)){picked.push(c);if(picked.length>=count)break}}}
+ if(picked.length<count){const byAmp=scores.filter(x=>x.amp>maxEnv*.05).sort((a,b)=>b.amp-a.amp);for(const gap of [minGap,Math.max(1,Math.round(minGap*.55))]){for(const c of byAmp){if(picked.every(p=>Math.abs(p.i-c.i)>=gap)){picked.push(c);if(picked.length>=count)break}}if(picked.length>=count)break}}
  picked.sort((a,b)=>a.i-b.i);
- if(!picked.length)return Array.from({length:count},(_,i)=>buffer.duration*(i+1)/(count+1));
- return picked.slice(0,count).map(x=>x.i*hop/buffer.sampleRate)
+ let times=picked.slice(0,count).map(x=>x.i*hop/buffer.sampleRate);
+ if(times.length<count){for(let i=0;times.length<count&&i<count*4;i++){const t=buffer.duration*(i+1)/(count*4+1);if(times.every(x=>Math.abs(x-t)>.055))times.push(t)}times.sort((a,b)=>a-b)}
+ return times.slice(0,count)
 }
 function cutHit(buffer,time,nextTime,maxDur=.85){
  const sr=buffer.sampleRate,start=Math.max(0,Math.floor((time-.012)*sr)),limit=Math.min(buffer.length,start+Math.floor(maxDur*sr)),next=nextTime==null?limit:Math.max(start+Math.floor(.08*sr),Math.floor((nextTime-.018)*sr)),end=Math.min(limit,next),len=Math.max(1,end-start),out=audioCtx.createBuffer(buffer.numberOfChannels,len,sr);
