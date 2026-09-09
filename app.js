@@ -10,6 +10,11 @@ for(const [category,label,count] of FACTORY_SPEC) for(let i=1;i<=count;i++) FACT
  id:'factory-'+(++fi),name:`${label} ${String(i).padStart(2,'0')}`,category,variant:i
 });
 const DEFAULT_NAMES=['Kick 01','Snare 01','Hi-Hat 01','Perc 01','Clap 01','Rim','Tom 01','Shaker','Bass 01','Synth 01','FX Vox 01','Cymbal 01','Chord','Lead','Texture','Stab'];
+const ORIENTAL_SOURCES=[
+ {instrument:'Darbuka',count:8,url:'https://upload.wikimedia.org/wikipedia/commons/e/ed/Darbuka.ogg',source:'https://commons.wikimedia.org/wiki/File:Darbuka.ogg',creator:'Cassa342',license:'CC BY-SA 4.0'},
+ {instrument:'Riq',count:4,url:'https://upload.wikimedia.org/wikipedia/commons/d/db/Riq_demo.ogg',source:'https://commons.wikimedia.org/wiki/File:Riq_demo.ogg',creator:'Derbake',license:'CC BY-SA 4.0'},
+ {instrument:'Bendir',count:4,url:'https://upload.wikimedia.org/wikipedia/commons/e/e4/T%C3%BCrk_Aksa%C4%9F%C4%B1_%2890_bpm%29.ogg',source:'https://commons.wikimedia.org/wiki/File:T%C3%BCrk_Aksa%C4%9F%C4%B1_(90_bpm).ogg',creator:'Anomyq',license:'CC0 1.0'}
+];
 
 let audioCtx=null, masterGain=null, isPlaying=false, recArmed=false, metro=false, fullLevel=false, noteRepeat=false;
 let bank='A', selectedPad='A01', selectedTrack=0, patternIndex=0, playStep=0, timer=null, nextStepTime=0, repeatDiv=4;
@@ -110,7 +115,7 @@ function stopRepeat(){if(repeatTimer){clearInterval(repeatTimer);repeatTimer=nul
 
 function renderEditor(){
  const p=selected(),s=p.sample?.kind==='factory'?FACTORY[p.sample.factoryIndex]:null;
- $('padCode').textContent='PAD '+p.id;$('padTitle').textContent=p.name;$('sampleFileName').textContent=s?('Factory · '+s.name):(p.userBlob?('Utilisateur · '+p.name):'Aucun sample');
+ $('padCode').textContent='PAD '+p.id;$('padTitle').textContent=p.name;const meta=p.externalMeta||null;$('sampleFileName').textContent=s?('Factory · '+s.name):(p.userBlob?((meta&&meta.instrument?'Réel · '+meta.instrument:'Utilisateur')+' · '+p.name):'Aucun sample');$('sampleFileName').title=meta?[meta.creator,meta.license,meta.source].filter(Boolean).join(' · '):'';
  $('sampleTime').textContent=s?'SYNTH':p.buffer?(p.buffer.duration.toFixed(2)+' s'):'VIDE';
  $('padGain').value=Math.round(p.gain*100);$('gainOut').textContent=Math.round(p.gain*100)+'%';$('padPitch').value=p.pitch;$('pitchOut').textContent=p.pitch+' st';
  $('padStart').value=Math.round(p.start*100);$('startOut').textContent=Math.round(p.start*100)+'%';$('padEnd').value=Math.round(p.end*100);$('endOut').textContent=Math.round(p.end*100)+'%';
@@ -130,10 +135,46 @@ function buildLibrary(){
 let activeCategory='Tous';
 function renderLibrary(cat=activeCategory,q=''){activeCategory=cat;q=q.toLowerCase().trim();const root=$('sampleList');root.innerHTML='';FACTORY.filter(s=>(cat==='Tous'||s.category===cat)&&(!q||s.name.toLowerCase().includes(q)||s.category.toLowerCase().includes(q))).forEach(s=>{const row=document.createElement('div');row.className='sample';row.innerHTML=`<div class="sampleWave"></div><div><strong>${escapeHtml(s.name)}</strong><small>${escapeHtml(s.category)} · FACTORY</small></div><button title="Assigner">＋</button>`;row.querySelector('.sampleWave').onclick=()=>previewFactory(s);row.querySelector('button').onclick=()=>assignFactory(s);root.appendChild(row)})}
 function previewFactory(s){lastPreviewSample=s;ensureAudio();scheduleFactory(s,audioCtx,masterGain,audioCtx.currentTime,.85,0);status('Préécoute '+s.name)}
-function assignFactory(s){const p=selected();p.sample={kind:'factory',factoryIndex:FACTORY.indexOf(s)};p.name=s.name;p.buffer=null;p.userBlob=null;p.cloudPath=null;renderPads();renderEditor();status(s.name+' assigné à '+p.id)}
+function assignFactory(s){const p=selected();p.sample={kind:'factory',factoryIndex:FACTORY.indexOf(s)};p.name=s.name;p.buffer=null;p.userBlob=null;p.cloudPath=null;p.externalMeta=null;renderPads();renderEditor();status(s.name+' assigné à '+p.id)}
 
-function loadFactoryKit(offset=0){for(let i=0;i<16;i++){const s=FACTORY[(offset+i)%FACTORY.length],p=pads[padId(bank,i)];p.sample={kind:'factory',factoryIndex:(offset+i)%FACTORY.length};p.name=s.name;p.buffer=null;p.userBlob=null;p.cloudPath=null}renderAll();status('Kit chargé sur banque '+bank)}
-function renderKitBrowser(){const root=$('sampleList');$('categories').innerHTML='';root.innerHTML='';[['KIT DRUMS',0],['KIT PERCUS',32],['KIT ELECTRO',64],['KIT SYNTH',96]].forEach(([name,off])=>{const row=document.createElement('div');row.className='sample';row.innerHTML=`<div class="sampleWave"></div><div><strong>${name}</strong><small>16 sons · banque ${bank}</small></div><button>CHARGER</button>`;row.querySelector('button').onclick=()=>loadFactoryKit(off);root.appendChild(row)})}
+function monoEnvelope(buffer,hop=128){
+ const frames=Math.ceil(buffer.length/hop),env=new Float32Array(frames),channels=buffer.numberOfChannels;
+ for(let f=0;f<frames;f++){let sum=0,n=0;const a=f*hop,z=Math.min(buffer.length,a+hop);for(let i=a;i<z;i++){let v=0;for(let c=0;c<channels;c++)v+=Math.abs(buffer.getChannelData(c)[i]);sum+=v/channels;n++}env[f]=n?sum/n:0}
+ return env
+}
+function detectTransientTimes(buffer,count){
+ const hop=128,env=monoEnvelope(buffer,hop),scores=[],lookback=6;let maxEnv=0,maxScore=0;
+ for(const v of env)maxEnv=Math.max(maxEnv,v);
+ for(let i=lookback;i<env.length-2;i++){let prev=0;for(let k=1;k<=lookback;k++)prev+=env[i-k];prev/=lookback;const score=Math.max(0,env[i]-prev*.9);if(score>maxScore)maxScore=score;scores.push({i,score,amp:env[i]})}
+ const candidates=scores.filter(x=>x.score>maxScore*.10&&x.amp>maxEnv*.04).sort((a,b)=>b.score-a.score),picked=[],minGap=Math.max(1,Math.round(buffer.sampleRate*.10/hop));
+ for(const c of candidates){if(picked.every(p=>Math.abs(p.i-c.i)>=minGap)){picked.push(c);if(picked.length>=count)break}}
+ if(picked.length<count){const byAmp=scores.filter(x=>x.amp>maxEnv*.08).sort((a,b)=>b.amp-a.amp);for(const c of byAmp){if(picked.every(p=>Math.abs(p.i-c.i)>=minGap)){picked.push(c);if(picked.length>=count)break}}}
+ picked.sort((a,b)=>a.i-b.i);
+ if(!picked.length)return Array.from({length:count},(_,i)=>buffer.duration*(i+1)/(count+1));
+ return picked.slice(0,count).map(x=>x.i*hop/buffer.sampleRate)
+}
+function cutHit(buffer,time,nextTime,maxDur=.85){
+ const sr=buffer.sampleRate,start=Math.max(0,Math.floor((time-.012)*sr)),limit=Math.min(buffer.length,start+Math.floor(maxDur*sr)),next=nextTime==null?limit:Math.max(start+Math.floor(.08*sr),Math.floor((nextTime-.018)*sr)),end=Math.min(limit,next),len=Math.max(1,end-start),out=audioCtx.createBuffer(buffer.numberOfChannels,len,sr);
+ for(let c=0;c<buffer.numberOfChannels;c++)out.copyToChannel(buffer.getChannelData(c).slice(start,end),c);return out
+}
+async function fetchOrientalSource(src){
+ const r=await fetch(src.url,{mode:'cors',cache:'force-cache'});if(!r.ok)throw new Error(src.instrument+' HTTP '+r.status);const blob=await r.blob(),buffer=await decodeBlob(blob);return {src,buffer}
+}
+async function loadOrientalKit(button=null){
+ ensureAudio();const targetBank=bank;if(button)button.disabled=true;status('Kit oriental réel : téléchargement des enregistrements…');
+ try{
+   const loaded=[];for(const src of ORIENTAL_SOURCES){status('Kit oriental : '+src.instrument+'…');loaded.push(await fetchOrientalSource(src))}
+   let slot=0;
+   for(const item of loaded){const times=detectTransientTimes(item.buffer,item.src.count);for(let n=0;n<item.src.count&&slot<16;n++,slot++){const hit=cutHit(item.buffer,times[n]??0,times[n+1],item.src.instrument==='Riq'?.65:.85),blob=new Blob([audioBufferToWav(hit)],{type:'audio/wav'}),id=padId(targetBank,slot),p=pads[id];Object.assign(p,{name:item.src.instrument+' '+String(n+1).padStart(2,'0'),sample:{kind:'user'},buffer:hit,userBlob:blob,cloudPath:null,start:0,end:1,pitch:0,gain:1,muted:false,loop:false,externalMeta:{provider:'Wikimedia Commons',instrument:item.src.instrument,source:item.src.source,license:item.src.license,creator:item.src.creator,realRecording:true}})}}
+   bank=targetBank;selectedPad=padId(bank,0);selectedTrack=0;renderAll();status('Kit ORIENTAL RÉEL chargé : Darbuka · Riq · Bendir sur banque '+bank)
+ }catch(e){status('Kit oriental : '+e.message)}
+ finally{if(button)button.disabled=false}
+}
+
+function loadFactoryKit(offset=0){for(let i=0;i<16;i++){const s=FACTORY[(offset+i)%FACTORY.length],p=pads[padId(bank,i)];p.sample={kind:'factory',factoryIndex:(offset+i)%FACTORY.length};p.name=s.name;p.buffer=null;p.userBlob=null;p.cloudPath=null;p.externalMeta=null}renderAll();status('Kit chargé sur banque '+bank)}
+function renderKitBrowser(){const root=$('sampleList');$('categories').innerHTML='';root.innerHTML='';
+ const oriental=document.createElement('div');oriental.className='sample realKit';oriental.innerHTML=`<div class="sampleWave"></div><div><strong>🥁 KIT ORIENTAL RÉEL</strong><small>Darbuka · Riq · Bendir · 16 vrais hits · banque ${bank}</small></div><button>CHARGER</button>`;const ob=oriental.querySelector('button');ob.onclick=()=>loadOrientalKit(ob);root.appendChild(oriental);
+ [['KIT DRUMS',0],['KIT PERCUS',32],['KIT ELECTRO',64],['KIT SYNTH',96]].forEach(([name,off])=>{const row=document.createElement('div');row.className='sample';row.innerHTML=`<div class="sampleWave"></div><div><strong>${name}</strong><small>16 sons synthétiques · banque ${bank}</small></div><button>CHARGER</button>`;row.querySelector('button').onclick=()=>loadFactoryKit(off);root.appendChild(row)})}
 function renderProjectBrowser(){const root=$('sampleList');$('categories').innerHTML='';root.innerHTML='';const has=!!localStorage.getItem('mpc-studio-project');const row=document.createElement('div');row.className='sample';row.innerHTML=`<div class="sampleWave"></div><div><strong>Projet local</strong><small>${has?'Sauvegarde disponible':'Aucune sauvegarde'}</small></div><button ${has?'':'disabled'}>OUVRIR</button>`;if(has)row.querySelector('button').onclick=loadLocal;root.appendChild(row)}
 function openMainMenu(){let d=$('mainMenuDialog');if(!d){d=document.createElement('dialog');d.id='mainMenuDialog';d.innerHTML='<div class="cloudCard"><div class="dialogHead"><div><small>MPC STUDIO</small><h2>Menu</h2></div><button id="mainMenuClose">✕</button></div><button id="menuSave">💾 SAUVER LOCAL</button><button id="menuLoad">📂 OUVRIR LOCAL</button><button id="menuStop">■ STOP AUDIO</button><button id="menuCloud">☁ SUPABASE</button></div>';document.body.appendChild(d);$('mainMenuClose').onclick=()=>d.close();$('menuSave').onclick=saveLocal;$('menuLoad').onclick=loadLocal;$('menuStop').onclick=stopPlayback;$('menuCloud').onclick=()=>{$('cloudDialog').showModal();cloudRefresh()}}if(!d.open)d.showModal()}
 function renderTrackSelect(){$('trackSelect').innerHTML='';for(let i=0;i<16;i++){const o=new Option(`${i+1} · ${pads[padId(bank,i)].name}`,i);$('trackSelect').add(o)}$('trackSelect').value=selectedTrack}
@@ -172,15 +213,15 @@ function sliceSelected(){
 function trimSelected(){const p=selected();if(!p.buffer){status('Découpage disponible sur les samples importés');return}ensureAudio();const start=Math.floor(p.start*p.buffer.length),end=Math.max(start+1,Math.floor(p.end*p.buffer.length)),len=end-start,b=audioCtx.createBuffer(p.buffer.numberOfChannels,len,p.buffer.sampleRate);for(let ch=0;ch<b.numberOfChannels;ch++)b.copyToChannel(p.buffer.getChannelData(ch).slice(start,end),ch);p.buffer=b;p.userBlob=new Blob([audioBufferToWav(b)],{type:'audio/wav'});p.sample={kind:'user'};p.start=0;p.end=1;p.cloudPath=null;renderEditor();status('Sample découpé définitivement')}
 function reverseSelected(){
  const p=selected();if(!p.buffer){status('Reverse disponible sur les samples importés');return}ensureAudio();const b=audioCtx.createBuffer(p.buffer.numberOfChannels,p.buffer.length,p.buffer.sampleRate);for(let ch=0;ch<b.numberOfChannels;ch++){const src=p.buffer.getChannelData(ch),dst=b.getChannelData(ch);for(let i=0;i<src.length;i++)dst[i]=src[src.length-1-i]}p.buffer=b;p.userBlob=new Blob([audioBufferToWav(b)],{type:'audio/wav'});p.sample={kind:'user'};p.cloudPath=null;drawWave();status('Sample inversé')}
-function clearPad(){const p=selected();p.sample=null;p.buffer=null;p.userBlob=null;p.cloudPath=null;p.name='Pad '+p.id;p.start=0;p.end=1;p.pitch=0;p.gain=1;renderPads();renderEditor()}
+function clearPad(){const p=selected();p.sample=null;p.buffer=null;p.userBlob=null;p.cloudPath=null;p.externalMeta=null;p.name='Pad '+p.id;p.start=0;p.end=1;p.pitch=0;p.gain=1;renderPads();renderEditor()}
 function randomBeat(){
  const pat=patterns[patternIndex];for(const id of Object.keys(pat))pat[id].fill(false);const p=n=>pat[padId(bank,n)];
  [0,4,8,12].forEach(s=>p(0)[s]=true);[4,12].forEach(s=>p(1)[s]=true);for(let s=0;s<16;s+=2)p(2)[s]=Math.random()>.15;for(let s=0;s<16;s++)if(Math.random()>.86)p(3)[s]=true;if(Math.random()>.5)[2,10].forEach(s=>p(8)[s]=true);renderSteps();status('Beat automatique créé sur banque '+bank)}
-function randomKit(){for(let i=0;i<16;i++){const id=padId(bank,i),s=FACTORY[Math.floor(Math.random()*FACTORY.length)];pads[id].sample={kind:'factory',factoryIndex:FACTORY.indexOf(s)};pads[id].name=s.name;pads[id].buffer=null;pads[id].userBlob=null;pads[id].cloudPath=null}renderPads();renderEditor();renderTrackSelect();status('Kit aléatoire chargé')}
+function randomKit(){for(let i=0;i<16;i++){const id=padId(bank,i),s=FACTORY[Math.floor(Math.random()*FACTORY.length)];pads[id].sample={kind:'factory',factoryIndex:FACTORY.indexOf(s)};pads[id].name=s.name;pads[id].buffer=null;pads[id].userBlob=null;pads[id].cloudPath=null;pads[id].externalMeta=null}renderPads();renderEditor();renderTrackSelect();status('Kit aléatoire chargé')}
 
 function serializable(includeCloud=true){
  return {version:6,name:$('projectName').value,bpm:+$('bpm').value,swing:+$('swing').value,master:+$('master').value,bank,patternIndex,
- pads:Object.fromEntries(Object.entries(pads).map(([id,p])=>[id,{id:p.id,name:p.name,gain:p.gain,pitch:p.pitch,start:p.start,end:p.end,muted:p.muted,loop:p.loop,sample:p.sample,cloudPath:includeCloud?p.cloudPath:null}])),
+ pads:Object.fromEntries(Object.entries(pads).map(([id,p])=>[id,{id:p.id,name:p.name,gain:p.gain,pitch:p.pitch,start:p.start,end:p.end,muted:p.muted,loop:p.loop,sample:p.sample,cloudPath:includeCloud?p.cloudPath:null,externalMeta:p.externalMeta||null}])),
  patterns:patterns.map(p=>Object.fromEntries(Object.entries(p).map(([id,a])=>[id,[...a]])))};
 }
 async function applyProject(d,loadCloudAudio=false){
