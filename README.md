@@ -81,7 +81,7 @@ Services ajoutés :
 - **MusicBrainz** — métadonnées de morceaux, artistes et enregistrements.
 - **Freesound** — recherche de samples avec une clé API gratuite personnelle.
 - **Demucs** — séparation d'un sample utilisateur en Drums, Bass, Vocals et Other via le service public de démonstration.
-- **Basic Pitch** — conversion audio vers MIDI via un serveur Basic Pitch auto-hébergé configuré par l'utilisateur.
+- **Basic Pitch** — conversion audio vers MIDI directement dans le navigateur avec le modèle Spotify, avec serveur personnel optionnel.
 
 ### Freesound
 
@@ -117,3 +117,21 @@ Si le bouton d’installation natif n’est pas proposé, ouvrir le menu **⋮**
 - `sw.js` : cache local et fonctionnement hors ligne des fonctions principales.
 
 L’installation PWA nécessite une origine sécurisée **HTTPS** (ou localhost pendant le développement).
+
+
+## Kit de percussions orientales réelles
+
+Dans **KITS**, le bouton **KIT ORIENTAL RÉEL** charge 16 frappes issues de vrais enregistrements et les répartit sur la banque active :
+
+- **Darbuka** : 8 frappes extraites d'un enregistrement de Cassa342 — Wikimedia Commons — CC BY-SA 4.0.
+- **Riq** : 4 frappes extraites d'un enregistrement de Derbake — Wikimedia Commons — CC BY-SA 4.0.
+- **Bendir** : 4 frappes extraites d'un enregistrement d'Anomyq — Wikimedia Commons — CC0 1.0.
+
+MPC Studio détecte les transitoires et transforme localement ces enregistrements en one-shots WAV. Les métadonnées d'auteur, de source et de licence restent attachées aux pads et sont conservées dans les sauvegardes/exportations de projet.
+
+Sources :
+- https://commons.wikimedia.org/wiki/File:Darbuka.ogg
+- https://commons.wikimedia.org/wiki/File:Riq_demo.ogg
+- https://commons.wikimedia.org/wiki/File:T%C3%BCrk_Aksa%C4%9F%C4%B1_(90_bpm).ogg
+
+Les dérivés provenant des fichiers Darbuka et Riq restent soumis à la licence CC BY-SA 4.0.
