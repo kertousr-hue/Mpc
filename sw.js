@@ -1,4 +1,4 @@
-const CACHE = 'mpc-studio-v11-dj-apis';
+const CACHE = 'mpc-studio-v12-dj-api-optimized';
 const SHELL = [
   './',
   './index.html',
