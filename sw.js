@@ -1,4 +1,4 @@
-const CACHE = 'mpc-studio-v22-live-pad-overdub-immediate';
+const CACHE = 'mpc-studio-v23-extended-pad-kits';
 const SHELL = [
   './',
   './index.html',
@@ -11,6 +11,7 @@ const SHELL = [
   './audio-tap.js',
   './dj.js',
   './dj.css',
+  './dj-pad-options.js',
   './dj-sync.js',
   './dj-live-layer.js',
   './dj-recorder.js',
