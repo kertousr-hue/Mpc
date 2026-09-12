@@ -6,7 +6,7 @@ function appStatus(m){if(typeof status==='function')status(m)}
 function asset(path){var base=String(window.MPC_ASSET_BASE||'').trim();if(!base)return path;return base.replace(/\/$/,'')+'/'+String(path||'').replace(/^\.\//,'')}
 function loadModule(css,js,key){
  if(css&&!document.querySelector('link[data-mpc-'+key+']')){var l=document.createElement('link');l.rel='stylesheet';l.href=asset(css);l.setAttribute('data-mpc-'+key,'1');document.head.appendChild(l)}
- if(js&&!document.querySelector('script[data-mpc-'+key+']')){var s=document.createElement('script');s.src=asset(js);s.defer=true;s.setAttribute('data-mpc-'+key,'1');document.body.appendChild(s)}
+ if(js&&!document.querySelector('script[data-mpc-'+key+']')){var s=document.createElement('script');s.src=asset(js);s.defer=true;s.setAttribute('data-mpc-'+key,'1';document.body.appendChild(s))}
 }
 function loadDjMixer(){loadModule('dj.css','dj.js','dj')}
 function loadVirtualDj(){loadModule('virtualdj.css','virtualdj.js','virtualdj')}
@@ -58,6 +58,7 @@ async function swUpdate(){
 }
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferredPrompt=e;refresh()});
 window.addEventListener('appinstalled',function(){deferredPrompt=null;refresh();appStatus('MPC Studio est installé sur cet appareil')});
-document.addEventListener('DOMContentLoaded',function(){installBtn=document.getElementById('installPwaBtn');if(installBtn)installBtn.onclick=openInstallUi;refresh();loadDjMixer();loadVirtualDj();loadDjApis();applyShortcutMode();connectivity();swUpdate();setTimeout(function(){refresh();applyShortcutMode()},1200)});
+function initPwa(){installBtn=document.getElementById('installPwaBtn');if(installBtn)installBtn.onclick=openInstallUi;refresh();loadDjMixer();loadVirtualDj();loadDjApis();applyShortcutMode();connectivity();swUpdate();setTimeout(function(){refresh();applyShortcutMode()},1200)}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initPwa,{once:true});else initPwa();
 window.MPCPWA={install:openInstallUi,isStandalone:isStandalone};
 })();
