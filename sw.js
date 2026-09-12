@@ -1,4 +1,4 @@
-const CACHE = 'mpc-studio-v20-android-continuous-sync';
+const CACHE = 'mpc-studio-v21-live-pad-overdub';
 const SHELL = [
   './',
   './index.html',
@@ -12,6 +12,7 @@ const SHELL = [
   './dj.js',
   './dj.css',
   './dj-sync.js',
+  './dj-live-layer.js',
   './dj-recorder.js',
   './dj-android-recorder.js',
   './virtualdj.js',
