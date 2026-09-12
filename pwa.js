@@ -3,9 +3,10 @@
 var deferredPrompt=null,installBtn=null;
 function isStandalone(){return window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true}
 function appStatus(m){if(typeof status==='function')status(m)}
+function asset(path){var base=String(window.MPC_ASSET_BASE||'').trim();if(!base)return path;return base.replace(/\/$/,'')+'/'+String(path||'').replace(/^\.\//,'')}
 function loadModule(css,js,key){
- if(css&&!document.querySelector('link[data-mpc-'+key+']')){var l=document.createElement('link');l.rel='stylesheet';l.href=css;l.setAttribute('data-mpc-'+key,'1');document.head.appendChild(l)}
- if(js&&!document.querySelector('script[data-mpc-'+key+']')){var s=document.createElement('script');s.src=js;s.defer=true;s.setAttribute('data-mpc-'+key,'1');document.body.appendChild(s)}
+ if(css&&!document.querySelector('link[data-mpc-'+key+']')){var l=document.createElement('link');l.rel='stylesheet';l.href=asset(css);l.setAttribute('data-mpc-'+key,'1');document.head.appendChild(l)}
+ if(js&&!document.querySelector('script[data-mpc-'+key+']')){var s=document.createElement('script');s.src=asset(js);s.defer=true;s.setAttribute('data-mpc-'+key,'1');document.body.appendChild(s)}
 }
 function loadDjMixer(){loadModule('dj.css','dj.js','dj')}
 function loadVirtualDj(){loadModule('virtualdj.css','virtualdj.js','virtualdj')}
@@ -13,7 +14,7 @@ function loadDjApis(){loadModule('api-dj.css','api-dj.js','djapis')}
 function ensureDialog(){
  var d=document.getElementById('pwaInstallDialog');if(d)return d;
  d=document.createElement('dialog');d.id='pwaInstallDialog';
- d.innerHTML='<div class="installCard"><div class="dialogHead"><div><small>APPLICATION</small><h2>Installer MPC Studio</h2></div><button id="pwaInstallClose" type="button">✕</button></div><div class="installHero"><img src="icons/icon-192.png" width="82" height="82" alt=""><div><b>MPC Studio</b><span>Boîte à rythmes · Sampling · Séquençage · DJ Mix · VirtualDJ PC · API DJ+</span></div></div><div id="pwaInstallInstructions" class="installInstructions"></div><button id="pwaNativeInstall" type="button" class="installPrimary">INSTALLER MAINTENANT</button></div>';
+ d.innerHTML='<div class="installCard"><div class="dialogHead"><div><small>APPLICATION</small><h2>Installer MPC Studio</h2></div><button id="pwaInstallClose" type="button">✕</button></div><div class="installHero"><img src="'+asset('icons/icon-192.png')+'" width="82" height="82" alt=""><div><b>MPC Studio</b><span>Boîte à rythmes · Sampling · Séquençage · DJ Mix · VirtualDJ PC · API DJ+</span></div></div><div id="pwaInstallInstructions" class="installInstructions"></div><button id="pwaNativeInstall" type="button" class="installPrimary">INSTALLER MAINTENANT</button></div>';
  document.body.appendChild(d);
  d.querySelector('#pwaInstallClose').onclick=function(){d.close()};
  d.querySelector('#pwaNativeInstall').onclick=triggerInstall;
