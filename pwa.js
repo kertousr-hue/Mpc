@@ -11,8 +11,9 @@ function loadModule(css,js,key){
 function loadAudioTap(){loadModule(null,'audio-tap.js','audiotap')}
 function loadDjMixer(){loadModule('dj.css','dj.js','dj')}
 function loadDjSync(){loadModule(null,'dj-sync.js','djsync')}
+function loadDjLiveLayer(){loadModule(null,'dj-live-layer.js','djlive')}
 function loadDjRecorder(){loadModule(null,'dj-recorder.js','djrecorder')}
-function loadAndroidRecorder(){loadModule(null,'dj-android-recorder.js','djandroidrecorder')}
+function loadAndroidDjRecorder(){loadModule(null,'dj-recorder-android.js','djrecorderandroid')}
 function loadVirtualDj(){loadModule('virtualdj.css','virtualdj.js','virtualdj')}
 function loadVirtualDjFiles(){loadModule(null,'virtualdj-files.js','virtualdjfiles')}
 function loadVirtualDjCatalogs(){loadModule(null,'virtualdj-catalogs.js','virtualdjcatalogs')}
@@ -64,7 +65,7 @@ async function swUpdate(){
 }
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferredPrompt=e;refresh()});
 window.addEventListener('appinstalled',function(){deferredPrompt=null;refresh();appStatus('MPC Studio est installé sur cet appareil')});
-function initPwa(){installBtn=document.getElementById('installPwaBtn');if(installBtn)installBtn.onclick=openInstallUi;refresh();loadAudioTap();loadDjMixer();loadDjSync();loadDjRecorder();loadAndroidRecorder();loadVirtualDj();loadVirtualDjFiles();loadVirtualDjCatalogs();loadDjApis();applyShortcutMode();connectivity();swUpdate();setTimeout(function(){refresh();applyShortcutMode()},1200)}
+function initPwa(){installBtn=document.getElementById('installPwaBtn');if(installBtn)installBtn.onclick=openInstallUi;refresh();loadAudioTap();loadDjMixer();loadDjSync();loadDjLiveLayer();loadDjRecorder();loadAndroidDjRecorder();loadVirtualDj();loadVirtualDjFiles();loadVirtualDjCatalogs();loadDjApis();applyShortcutMode();connectivity();swUpdate();setTimeout(function(){refresh();applyShortcutMode()},1200)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initPwa,{once:true});else initPwa();
 window.MPCPWA={install:openInstallUi,isStandalone:isStandalone};
 })();
