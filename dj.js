@@ -1,15 +1,15 @@
 (function(){
 'use strict';
 
+const PAD_LABELS=['Kick','Snare','Hi-Hat','Perc','Clap','Rim','Tom','Shaker','Bass','Synth','FX Vox','Cymbal','Chord','Lead','Texture','Stab'];
 const decks={
- A:{key:'A',player:null,ready:false,videoId:'',cue:0,loop:null,rates:[1],drag:null},
- B:{key:'B',player:null,ready:false,videoId:'',cue:0,loop:null,rates:[1],drag:null}
+ A:{key:'A',player:null,ready:false,videoId:'',cue:0,loop:null,rates:[1],drag:null,padBank:'A',padPage:0},
+ B:{key:'B',player:null,ready:false,videoId:'',cue:0,loop:null,rates:[1],drag:null,padBank:'A',padPage:0}
 };
 let ytPromise=null,ticker=null;
 
 function el(id){return document.getElementById(id)}
 function setStatus(message){const s=el('status');if(s)s.textContent=message}
-function esc(value){return String(value||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
 function fmt(seconds){seconds=Math.max(0,Number(seconds)||0);const m=Math.floor(seconds/60),s=Math.floor(seconds%60);return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')}
 function safe(deck,method,...args){try{if(deck.player&&deck.ready&&typeof deck.player[method]==='function')return deck.player[method](...args)}catch(e){}return null}
 
@@ -61,6 +61,10 @@ function deckHtml(key){
    <button id="djSetCue${key}" type="button">● SET CUE</button>
    <button id="djLoop${key}" type="button">↻ LOOP 8 s</button>
   </div>
+  <section class="djPadSection">
+   <div class="djPadHead"><b>PERFORMANCE PADS</b><div><label>BANQUE <select id="djPadBank${key}"><option>A</option><option>B</option><option>C</option><option>D</option></select></label><button id="djPadPage${key}" type="button">PADS 1–8</button></div></div>
+   <div id="djPads${key}" class="djPads"></div>
+  </section>
   <div class="djFaders">
    <label>VOLUME <input id="djVol${key}" type="range" min="0" max="100" value="90"><output id="djVolOut${key}">90%</output></label>
    <label>VITESSE <select id="djRate${key}"><option value="1">1.00×</option></select></label>
@@ -74,16 +78,16 @@ function injectUi(){
  if(!nav||!workspace)return;
  const mode=document.createElement('button');
  mode.type='button';mode.dataset.mode='dj';mode.className='dj';
- mode.innerHTML='<b>🎧 DJ MIX</b><small>2 PLATINES · YOUTUBE · CROSSFADER</small>';
+ mode.innerHTML='<b>🎧 DJ MIX</b><small>2 PLATINES · YOUTUBE · PADS · CROSSFADER</small>';
  nav.appendChild(mode);
  const section=document.createElement('section');section.id='djWorkspace';section.className='djWorkspace';
  section.innerHTML=`${deckHtml('A')}
   <aside class="djMixer panel">
-   <div class="djMixerHead"><small>MIXEUR DJ</small><h2>MASTER</h2><p>Colle un lien YouTube sur chaque platine puis mélange A et B avec le crossfader.</p></div>
+   <div class="djMixerHead"><small>MIXEUR DJ</small><h2>MASTER</h2><p>Colle un lien YouTube sur chaque platine, lance les pads MPC et mélange A/B avec le crossfader.</p></div>
    <div class="djCrossWrap"><span>A</span><input id="djCross" type="range" min="0" max="100" value="50" aria-label="Crossfader"><span>B</span></div>
    <div class="djCrossLabels"><b id="djMixA">A 71%</b><b id="djMixB">B 71%</b></div>
    <button id="djStopAll" class="djStopAll" type="button">■ STOP DECK A + B</button>
-   <div class="djHelp"><b>Mode YouTube</b><span>Play/Pause, CUE, recherche dans le morceau, jog seek, volume, vitesse disponible et crossfader.</span><small>Le scratch audio continu et la waveform YouTube ne sont pas accessibles depuis le lecteur intégré.</small></div>
+   <div class="djHelp"><b>Mode YouTube + Pads</b><span>Play/Pause, CUE, recherche dans le morceau, jog seek, volume, vitesse disponible, 16 pads par banque et crossfader.</span><small>Les pads utilisent les sons de ta MPC. Les banques B/C/D jouent les samples que tu leur as assignés.</small></div>
   </aside>
  ${deckHtml('B')}`;
  workspace.insertAdjacentElement('afterend',section);
@@ -98,7 +102,7 @@ function bindModeButton(button){
  button.addEventListener('click',()=>{
   document.body.dataset.mode='dj';
   document.querySelectorAll('.bigModes button').forEach(b=>b.classList.toggle('active',b===button));
-  setStatus('DJ MIX · 2 platines YouTube');
+  setStatus('DJ MIX · 2 platines YouTube + performance pads');
  });
 }
 
@@ -122,7 +126,33 @@ function bindDeck(key){
  el('djVol'+key).addEventListener('input',e=>{el('djVolOut'+key).textContent=e.target.value+'%';applyMixer()});
  el('djRate'+key).addEventListener('change',e=>{safe(d,'setPlaybackRate',Number(e.target.value)||1);setStatus(`Deck ${key} · vitesse ${e.target.value}×`)});
  el('djSeek'+key).addEventListener('input',e=>{const dur=Number(safe(d,'getDuration'))||0;if(dur)safe(d,'seekTo',dur*(Number(e.target.value)/1000),true)});
+ el('djPadBank'+key).addEventListener('change',e=>{d.padBank=e.target.value;renderDjPads(key)});
+ el('djPadPage'+key).addEventListener('click',()=>{d.padPage=d.padPage?0:1;renderDjPads(key)});
+ renderDjPads(key);
  bindPlatter(key);
+}
+
+function renderDjPads(key){
+ const d=decks[key],root=el('djPads'+key),pageBtn=el('djPadPage'+key);if(!root)return;
+ root.innerHTML='';
+ const start=d.padPage*8;
+ for(let i=0;i<8;i++){
+  const index=start+i,padId=d.padBank+String(index+1).padStart(2,'0'),button=document.createElement('button');
+  button.type='button';button.className='djPerfPad';button.dataset.pad=padId;
+  const label=d.padBank==='A'?(PAD_LABELS[index]||('Pad '+(index+1))):('Pad '+(index+1));
+  button.innerHTML=`<span>${padId}</span><b>${label}</b>`;
+  button.addEventListener('pointerdown',e=>{e.preventDefault();triggerDjPad(key,padId,button)});
+  root.appendChild(button);
+ }
+ if(pageBtn)pageBtn.textContent=d.padPage?'PADS 9–16':'PADS 1–8';
+}
+
+function triggerDjPad(deckKey,padId,button){
+ button.classList.add('hit');setTimeout(()=>button.classList.remove('hit'),110);
+ if(typeof window.playPad==='function'){
+  try{window.playPad(padId);setStatus(`Deck ${deckKey} · ${padId}`);return}catch(e){}
+ }
+ setStatus(`Pad ${padId} indisponible`);
 }
 
 function bindPlatter(key){
