@@ -1,4 +1,4 @@
-const CACHE = 'mpc-studio-v15-dj-record-virtualdj-upload';
+const CACHE = 'mpc-studio-v16-virtualdj-catalog-search';
 const SHELL = [
   './',
   './index.html',
@@ -14,6 +14,7 @@ const SHELL = [
   './virtualdj.js',
   './virtualdj.css',
   './virtualdj-files.js',
+  './virtualdj-catalogs.js',
   './supabase-config.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
