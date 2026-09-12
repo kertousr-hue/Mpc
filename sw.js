@@ -1,4 +1,4 @@
-const CACHE = 'mpc-studio-v8-factory-editable';
+const CACHE = 'mpc-studio-v9-dj-youtube-pads';
 const SHELL = [
   './',
   './index.html',
@@ -6,6 +6,8 @@ const SHELL = [
   './app.js',
   './api-services.js',
   './pwa.js',
+  './dj.js',
+  './dj.css',
   './supabase-config.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
