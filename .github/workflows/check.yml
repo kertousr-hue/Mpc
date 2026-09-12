@@ -25,6 +25,7 @@ jobs:
           node --check dj.js
           node --check dj-sync.js
           node --check dj-recorder.js
+          node --check dj-android-recorder.js
           node --check virtualdj.js
           node --check virtualdj-files.js
           node --check virtualdj-catalogs.js
@@ -45,6 +46,7 @@ jobs:
           test -f dj.css
           test -f dj-sync.js
           test -f dj-recorder.js
+          test -f dj-android-recorder.js
           test -f virtualdj.js
           test -f virtualdj.css
           test -f virtualdj-files.js
