@@ -25,6 +25,7 @@ jobs:
           node --check dj-recorder.js
           node --check virtualdj.js
           node --check virtualdj-files.js
+          node --check virtualdj-catalogs.js
       - name: Vérifier Python
         run: |
           python -m py_compile virtualdj_bridge.py
@@ -43,6 +44,7 @@ jobs:
           test -f virtualdj.js
           test -f virtualdj.css
           test -f virtualdj-files.js
+          test -f virtualdj-catalogs.js
           test -f virtualdj_bridge.py
           test -f virtualdj_bridge_v2.py
           test -f start_virtualdj_bridge.bat
