@@ -10,6 +10,7 @@ function loadModule(css,js,key){
 }
 function loadAudioTap(){loadModule(null,'audio-tap.js','audiotap')}
 function loadDjMixer(){loadModule('dj.css','dj.js','dj')}
+function loadDjPadOptions(){loadModule(null,'dj-pad-options.js','djpadoptions')}
 function loadDjSync(){loadModule(null,'dj-sync.js','djsync')}
 function loadDjLiveLayer(){loadModule(null,'dj-live-layer.js','djlive')}
 function loadDjRecorder(){loadModule(null,'dj-recorder.js','djrecorder')}
@@ -65,7 +66,7 @@ async function swUpdate(){
 }
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferredPrompt=e;refresh()});
 window.addEventListener('appinstalled',function(){deferredPrompt=null;refresh();appStatus('MPC Studio est installé sur cet appareil')});
-function initPwa(){installBtn=document.getElementById('installPwaBtn');if(installBtn)installBtn.onclick=openInstallUi;refresh();loadAudioTap();loadDjMixer();loadDjSync();loadDjLiveLayer();loadDjRecorder();loadAndroidDjRecorder();loadVirtualDj();loadVirtualDjFiles();loadVirtualDjCatalogs();loadDjApis();applyShortcutMode();connectivity();swUpdate();setTimeout(function(){refresh();applyShortcutMode()},1200)}
+function initPwa(){installBtn=document.getElementById('installPwaBtn');if(installBtn)installBtn.onclick=openInstallUi;refresh();loadAudioTap();loadDjMixer();loadDjPadOptions();loadDjSync();loadDjLiveLayer();loadDjRecorder();loadAndroidDjRecorder();loadVirtualDj();loadVirtualDjFiles();loadVirtualDjCatalogs();loadDjApis();applyShortcutMode();connectivity();swUpdate();setTimeout(function(){refresh();applyShortcutMode()},1200)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initPwa,{once:true});else initPwa();
 window.MPCPWA={install:openInstallUi,isStandalone:isStandalone};
 })();
