@@ -1,4 +1,4 @@
-const CACHE = 'mpc-studio-v21-live-pad-overdub';
+const CACHE = 'mpc-studio-v22-live-pad-overdub-immediate';
 const SHELL = [
   './',
   './index.html',
