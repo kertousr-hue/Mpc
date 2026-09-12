@@ -1,10 +1,12 @@
-const CACHE = 'mpc-studio-v10-virtualdj-pc';
+const CACHE = 'mpc-studio-v11-dj-apis';
 const SHELL = [
   './',
   './index.html',
   './styles.css',
   './app.js',
   './api-services.js',
+  './api-dj.js',
+  './api-dj.css',
   './pwa.js',
   './dj.js',
   './dj.css',
