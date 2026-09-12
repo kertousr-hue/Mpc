@@ -1,7 +1,7 @@
 {
   "name": "MPC Studio — Beat Maker",
   "short_name": "MPC Studio",
-  "description": "Boîte à rythmes, sampling, séquençage et création musicale.",
+  "description": "Boîte à rythmes, sampling, séquençage, DJ Mix et contrôleur VirtualDJ PC.",
   "id": "./",
   "start_url": "./",
   "scope": "./",
@@ -47,6 +47,13 @@
       "short_name": "Création",
       "description": "Sound design et outils de création",
       "url": "./?mode=creation",
+      "icons": [{"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"}]
+    },
+    {
+      "name": "VirtualDJ PC",
+      "short_name": "VirtualDJ",
+      "description": "Piloter VirtualDJ sur le PC depuis Android",
+      "url": "./?mode=virtualdj",
       "icons": [{"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"}]
     }
   ]
