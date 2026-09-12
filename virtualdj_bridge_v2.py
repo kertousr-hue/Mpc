@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""MPC Studio <-> VirtualDJ bridge v2 with secure local audio upload.
+"""MPC Studio <-> VirtualDJ bridge v2 with secure local audio upload and catalog search.
 
 This extends the original bridge without exposing arbitrary VDJScript. Audio files
 selected in MPC Studio are uploaded to a temporary PC folder and then loaded into
-VirtualDJ with the documented `deck N load "fullpath"` command.
+VirtualDJ. It also exposes a small allow-listed browser/search controller so the
+Android UI can search and load tracks from catalogues already connected in VirtualDJ.
 """
 
 from __future__ import annotations
@@ -24,9 +25,10 @@ from virtualdj_bridge import (
     BridgeServer,
     VirtualDJNetworkControl,
     local_ip,
+    number,
 )
 
-BRIDGE_V2_VERSION = "2.0.0"
+BRIDGE_V2_VERSION = "2.1.0"
 MAX_UPLOAD = 250 * 1024 * 1024
 ALLOWED_EXTENSIONS = {".mp3", ".wav", ".flac", ".m4a", ".aac", ".ogg", ".opus", ".aiff", ".aif"}
 
@@ -35,11 +37,96 @@ def safe_filename(value: str) -> str:
     name = Path(unquote(value or "track")).name.strip() or "track"
     name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name)
     name = re.sub(r"\s+", " ", name).strip(" .")
-    return (name[:140] or "track")
+    return name[:140] or "track"
+
+
+def safe_search_text(value: object) -> str:
+    text = str(value or "").strip()
+    text = re.sub(r"[\x00-\x1f`\"\\]", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text[:120]
+
+
+class VirtualDJNetworkControlV2(VirtualDJNetworkControl):
+    def browser_state(self) -> dict:
+        try:
+            raw = self.query(
+                "get_text "
+                "'`get_browsed_title`~|~`get_browsed_artist`~|~`get_browsed_bpm`~|~"
+                "`get_browsed_key`~|~`get_browsed_filepath`~|~`file_count`'"
+            )
+            parts = raw.split("~|~")
+            while len(parts) < 6:
+                parts.append("")
+            return {
+                "title": parts[0],
+                "artist": parts[1],
+                "bpm": number(parts[2], 0),
+                "key": parts[3],
+                "filepath": parts[4],
+                "count": int(number(parts[5], 0)),
+            }
+        except Exception:
+            return {"title": "", "artist": "", "bpm": 0, "key": "", "filepath": "", "count": 0}
+
+    def state(self) -> dict:
+        data = super().state()
+        data["browser"] = self.browser_state()
+        data["bridge"] = BRIDGE_V2_VERSION
+        return data
+
+    def command(self, payload: dict) -> tuple[bool, str]:
+        action = str(payload.get("action") or "").strip().lower()
+        deck = int(number(payload.get("deck"), 1))
+        if deck not in (1, 2):
+            raise ValueError("Deck invalide")
+
+        if action == "catalog_search":
+            text = safe_search_text(payload.get("query"))
+            if not text:
+                raise ValueError("Recherche vide")
+            search_script = f'search "{text}"'
+            ok = self.execute(search_script)
+            self.execute('browser_window "songs"')
+            self.execute("browser_scroll 'top'")
+            return ok, search_script
+
+        if action == "browser_next":
+            self.execute('browser_window "songs"')
+            script = "browser_scroll +1"
+            return self.execute(script), script
+
+        if action == "browser_prev":
+            self.execute('browser_window "songs"')
+            script = "browser_scroll -1"
+            return self.execute(script), script
+
+        if action == "browser_top":
+            self.execute('browser_window "songs"')
+            script = "browser_scroll 'top'"
+            return self.execute(script), script
+
+        if action == "load_browsed":
+            script = f"deck {deck} load"
+            return self.execute(script), script
+
+        if action == "preview_browsed":
+            script = "prelisten"
+            return self.execute(script), script
+
+        if action == "preview_stop":
+            script = "prelisten_stop"
+            return self.execute(script), script
+
+        if action == "clear_catalog_search":
+            script = "clear_search"
+            return self.execute(script), script
+
+        return super().command(payload)
 
 
 class UploadBridgeHandler(BridgeHandler):
-    server_version = "MPCVirtualDJBridge/2.0"
+    server_version = "MPCVirtualDJBridge/2.1"
 
     @property
     def upload_dir(self) -> Path:
@@ -112,7 +199,7 @@ class UploadBridgeHandler(BridgeHandler):
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Passerelle locale MPC Studio -> VirtualDJ v2")
+    parser = argparse.ArgumentParser(description="Passerelle locale MPC Studio -> VirtualDJ v2.1")
     parser.add_argument("--bind", default=os.getenv("MPC_VDJ_BIND", "0.0.0.0"))
     parser.add_argument("--port", type=int, default=int(os.getenv("MPC_VDJ_BRIDGE_PORT", "8765")))
     parser.add_argument("--vdj-host", default=os.getenv("MPC_VDJ_HOST", "127.0.0.1"))
@@ -130,19 +217,20 @@ def main() -> int:
         print(f"Erreur: index.html introuvable dans {root}", file=sys.stderr)
         return 2
 
-    bridge = VirtualDJNetworkControl(host=args.vdj_host, port=args.vdj_port, password=args.vdj_password)
+    bridge = VirtualDJNetworkControlV2(host=args.vdj_host, port=args.vdj_port, password=args.vdj_password)
     handler = partial(UploadBridgeHandler, directory=str(root))
     server = BridgeServer((args.bind, args.port), handler, bridge, pin)
     server.upload_dir = upload_dir
     ip = local_ip()
 
-    print("\n=== MPC Studio · VirtualDJ PC Bridge v2 ===")
+    print("\n=== MPC Studio · VirtualDJ PC Bridge v2.1 ===")
     print(f"Dossier MPC : {root}")
     print(f"Dossier musiques temporaires : {upload_dir}")
     print(f"VirtualDJ Network Control : http://{args.vdj_host}:{args.vdj_port}")
     print(f"Code PIN Android : {pin}")
     print(f"Ouvre sur Android : http://{ip}:{args.port}/?mode=virtualdj")
-    print("Tu peux maintenant envoyer MP3/WAV/FLAC/M4A depuis MPC Studio vers Deck A ou B.")
+    print("Fonctions : fichiers audio + recherche catalogue VirtualDJ + chargement Deck A/B.")
+    print("Les services SoundCloud/Beatport/Beatsource/TIDAL/Deezer doivent être connectés dans VirtualDJ.")
     print("PC et Android doivent être sur le même réseau Wi-Fi/LAN.")
     print("Ctrl+C pour arrêter.\n")
 
