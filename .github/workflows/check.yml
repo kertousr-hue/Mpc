@@ -19,6 +19,7 @@ jobs:
         run: |
           node --check app.js
           node --check api-services.js
+          node --check api-dj.js
           node --check pwa.js
           node --check dj.js
           node --check virtualdj.js
@@ -29,6 +30,8 @@ jobs:
           test -f index.html
           test -f styles.css
           test -f api-services.js
+          test -f api-dj.js
+          test -f api-dj.css
           test -f pwa.js
           test -f dj.js
           test -f dj.css
