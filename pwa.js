@@ -9,10 +9,11 @@ function loadModule(css,js,key){
 }
 function loadDjMixer(){loadModule('dj.css','dj.js','dj')}
 function loadVirtualDj(){loadModule('virtualdj.css','virtualdj.js','virtualdj')}
+function loadDjApis(){loadModule('api-dj.css','api-dj.js','djapis')}
 function ensureDialog(){
  var d=document.getElementById('pwaInstallDialog');if(d)return d;
  d=document.createElement('dialog');d.id='pwaInstallDialog';
- d.innerHTML='<div class="installCard"><div class="dialogHead"><div><small>APPLICATION</small><h2>Installer MPC Studio</h2></div><button id="pwaInstallClose" type="button">✕</button></div><div class="installHero"><img src="icons/icon-192.png" width="82" height="82" alt=""><div><b>MPC Studio</b><span>Boîte à rythmes · Sampling · Séquençage · DJ Mix · VirtualDJ PC</span></div></div><div id="pwaInstallInstructions" class="installInstructions"></div><button id="pwaNativeInstall" type="button" class="installPrimary">INSTALLER MAINTENANT</button></div>';
+ d.innerHTML='<div class="installCard"><div class="dialogHead"><div><small>APPLICATION</small><h2>Installer MPC Studio</h2></div><button id="pwaInstallClose" type="button">✕</button></div><div class="installHero"><img src="icons/icon-192.png" width="82" height="82" alt=""><div><b>MPC Studio</b><span>Boîte à rythmes · Sampling · Séquençage · DJ Mix · VirtualDJ PC · API DJ+</span></div></div><div id="pwaInstallInstructions" class="installInstructions"></div><button id="pwaNativeInstall" type="button" class="installPrimary">INSTALLER MAINTENANT</button></div>';
  document.body.appendChild(d);
  d.querySelector('#pwaInstallClose').onclick=function(){d.close()};
  d.querySelector('#pwaNativeInstall').onclick=triggerInstall;
@@ -56,6 +57,6 @@ async function swUpdate(){
 }
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferredPrompt=e;refresh()});
 window.addEventListener('appinstalled',function(){deferredPrompt=null;refresh();appStatus('MPC Studio est installé sur cet appareil')});
-document.addEventListener('DOMContentLoaded',function(){installBtn=document.getElementById('installPwaBtn');if(installBtn)installBtn.onclick=openInstallUi;refresh();loadDjMixer();loadVirtualDj();applyShortcutMode();connectivity();swUpdate();setTimeout(function(){refresh();applyShortcutMode()},1200)});
+document.addEventListener('DOMContentLoaded',function(){installBtn=document.getElementById('installPwaBtn');if(installBtn)installBtn.onclick=openInstallUi;refresh();loadDjMixer();loadVirtualDj();loadDjApis();applyShortcutMode();connectivity();swUpdate();setTimeout(function(){refresh();applyShortcutMode()},1200)});
 window.MPCPWA={install:openInstallUi,isStandalone:isStandalone};
 })();
