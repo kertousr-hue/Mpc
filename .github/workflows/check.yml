@@ -21,6 +21,9 @@ jobs:
           node --check api-services.js
           node --check pwa.js
           node --check dj.js
+          node --check virtualdj.js
+      - name: Vérifier Python
+        run: python -m py_compile virtualdj_bridge.py
       - name: Vérifier les fichiers essentiels
         run: |
           test -f index.html
@@ -29,6 +32,9 @@ jobs:
           test -f pwa.js
           test -f dj.js
           test -f dj.css
+          test -f virtualdj.js
+          test -f virtualdj.css
+          test -f virtualdj_bridge.py
           test -f icons/icon-192.png
           test -f icons/icon-512.png
           test -f supabase-schema.sql
