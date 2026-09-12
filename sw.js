@@ -1,4 +1,4 @@
-const CACHE = 'mpc-studio-v9-dj-youtube-pads';
+const CACHE = 'mpc-studio-v10-virtualdj-pc';
 const SHELL = [
   './',
   './index.html',
@@ -8,6 +8,8 @@ const SHELL = [
   './pwa.js',
   './dj.js',
   './dj.css',
+  './virtualdj.js',
+  './virtualdj.css',
   './supabase-config.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
