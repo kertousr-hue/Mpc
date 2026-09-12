@@ -13,7 +13,7 @@ function loadDjMixer(){loadModule('dj.css','dj.js','dj')}
 function loadDjSync(){loadModule(null,'dj-sync.js','djsync')}
 function loadDjLiveLayer(){loadModule(null,'dj-live-layer.js','djlive')}
 function loadDjRecorder(){loadModule(null,'dj-recorder.js','djrecorder')}
-function loadAndroidDjRecorder(){loadModule(null,'dj-recorder-android.js','djrecorderandroid')}
+function loadAndroidDjRecorder(){loadModule(null,'dj-android-recorder.js','djrecorderandroid')}
 function loadVirtualDj(){loadModule('virtualdj.css','virtualdj.js','virtualdj')}
 function loadVirtualDjFiles(){loadModule(null,'virtualdj-files.js','virtualdjfiles')}
 function loadVirtualDjCatalogs(){loadModule(null,'virtualdj-catalogs.js','virtualdjcatalogs')}
