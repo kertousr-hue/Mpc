@@ -27,7 +27,7 @@ jobs:
       - name: Préparer le site
         run: |
           mkdir -p _site
-          cp index.html styles.css app.js api-services.js api-dj.js api-dj.css pwa.js dj.js dj.css dj-recorder.js virtualdj.js virtualdj.css virtualdj-files.js supabase-config.js manifest.webmanifest sw.js _site/
+          cp index.html styles.css app.js api-services.js api-dj.js api-dj.css pwa.js dj.js dj.css dj-recorder.js virtualdj.js virtualdj.css virtualdj-files.js virtualdj-catalogs.js supabase-config.js manifest.webmanifest sw.js _site/
           cp -R icons _site/icons
           touch _site/.nojekyll
 
