@@ -1,4 +1,4 @@
-const CACHE = 'mpc-studio-v16-virtualdj-catalog-search';
+const CACHE = 'mpc-studio-v17-virtualdj-catalog-plus';
 const SHELL = [
   './',
   './index.html',
