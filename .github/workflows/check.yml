@@ -20,12 +20,15 @@ jobs:
           node --check app.js
           node --check api-services.js
           node --check pwa.js
+          node --check dj.js
       - name: Vérifier les fichiers essentiels
         run: |
           test -f index.html
           test -f styles.css
           test -f api-services.js
           test -f pwa.js
+          test -f dj.js
+          test -f dj.css
           test -f icons/icon-192.png
           test -f icons/icon-512.png
           test -f supabase-schema.sql
