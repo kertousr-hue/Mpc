@@ -1,4 +1,4 @@
-const CACHE = 'mpc-studio-v18-dj-pad-recording';
+const CACHE = 'mpc-studio-v19-dj-beat-sync';
 const SHELL = [
   './',
   './index.html',
@@ -11,6 +11,7 @@ const SHELL = [
   './audio-tap.js',
   './dj.js',
   './dj.css',
+  './dj-sync.js',
   './dj-recorder.js',
   './virtualdj.js',
   './virtualdj.css',
