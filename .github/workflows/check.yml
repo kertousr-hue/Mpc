@@ -23,6 +23,7 @@ jobs:
           node --check pwa.js
           node --check audio-tap.js
           node --check dj.js
+          node --check dj-pad-options.js
           node --check dj-sync.js
           node --check dj-live-layer.js
           node --check dj-recorder.js
@@ -45,6 +46,7 @@ jobs:
           test -f audio-tap.js
           test -f dj.js
           test -f dj.css
+          test -f dj-pad-options.js
           test -f dj-sync.js
           test -f dj-live-layer.js
           test -f dj-recorder.js
