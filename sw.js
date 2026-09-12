@@ -1,4 +1,4 @@
-const CACHE = 'mpc-studio-v19-dj-beat-sync';
+const CACHE = 'mpc-studio-v20-android-continuous-sync';
 const SHELL = [
   './',
   './index.html',
@@ -13,6 +13,7 @@ const SHELL = [
   './dj.css',
   './dj-sync.js',
   './dj-recorder.js',
+  './dj-android-recorder.js',
   './virtualdj.js',
   './virtualdj.css',
   './virtualdj-files.js',
