@@ -1,17 +1,17 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title MPC Studio - VirtualDJ Bridge
+title MPC Studio - VirtualDJ Bridge v2
 
 where py >nul 2>&1
 if %errorlevel%==0 (
-  py -3 virtualdj_bridge.py
+  py -3 virtualdj_bridge_v2.py
   goto :end
 )
 
 where python >nul 2>&1
 if %errorlevel%==0 (
-  python virtualdj_bridge.py
+  python virtualdj_bridge_v2.py
   goto :end
 )
 
