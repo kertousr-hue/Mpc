@@ -21,6 +21,7 @@ jobs:
           node --check api-services.js
           node --check api-dj.js
           node --check pwa.js
+          node --check audio-tap.js
           node --check dj.js
           node --check dj-recorder.js
           node --check virtualdj.js
@@ -38,6 +39,7 @@ jobs:
           test -f api-dj.js
           test -f api-dj.css
           test -f pwa.js
+          test -f audio-tap.js
           test -f dj.js
           test -f dj.css
           test -f dj-recorder.js
