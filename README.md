@@ -135,3 +135,59 @@ Sources :
 - https://commons.wikimedia.org/wiki/File:T%C3%BCrk_Aksa%C4%9F%C4%B1_(90_bpm).ogg
 
 Les dérivés provenant des fichiers Darbuka et Riq restent soumis à la licence CC BY-SA 4.0.
+
+
+## Groovebox V2
+
+La branche Groovebox V2 ajoute une couche de production avancée tout en conservant les projets historiques :
+
+- patterns de 1 à 8 mesures et grille multipiste ;
+- vélocité, probabilité, micro-timing, pitch, accent et ratchet par pas ;
+- mixeur par piste avec panorama, EQ 3 bandes, filtre, Mute/Solo et sends ;
+- FX synchronisés au BPM, reverb, distortion, bit-crusher, chorus/flanger, compresseur et limiteur ;
+- parameter locks et automation ;
+- Flam, Stutter et Accent live ;
+- Web MIDI + MIDI Learn et export Pattern/Song MIDI ;
+- export WAV master et stems piste par piste.
+
+Les anciens projets V6 sont convertis en mémoire vers le modèle V7 au chargement.
+
+## Sonilo AI
+
+MPC Studio peut générer de la musique ou des SFX Sonilo puis importer le résultat directement sur le pad sélectionné.
+
+La clé **ne doit jamais** être placée dans `sonilo.js`, `supabase-config.js`, localStorage ou le projet exporté. Utiliser le secret Supabase Edge Functions :
+
+`SONILO_API_KEY`
+
+Fonctions prévues :
+- `sonilo-generate`
+- `sonilo-task`
+
+Elles doivent être déployées avec validation JWT activée. Le navigateur appelle uniquement les Edge Functions via la session Supabase connectée.
+
+## VST3 PC Bridge
+
+Une PWA ne peut pas héberger directement des VST3 Windows. `vst_bridge.py` fournit donc un pont local optionnel basé sur Spotify Pedalboard :
+
+1. installer les VST3 sur le PC (par exemple avec MPluginManager pour MeldaProduction) ;
+2. lancer `start_vst_bridge.bat` ;
+3. saisir l'adresse LAN et le PIN dans **Création > VST3 PC** ;
+4. choisir un VST3 et traiter le sample du pad sélectionné.
+
+Le pont n'exécute jamais le fichier d'installation MPluginManager. Voir `VST_PC.md`.
+
+
+## Palette Raï 128 sons
+
+La bibliothèque Factory de MPC Studio est désormais orientée raï tout en conservant exactement les 128 index historiques pour que les anciens projets restent compatibles.
+
+Elle comprend notamment :
+- batterie et claps raï ;
+- shakers, Riq et tambourins ;
+- Darbuka, Guellal, Bendir et Tbal ;
+- basses raï ;
+- Gasba, accordéon, trompette, guitare, strings, synth leads et stabs ;
+- Vox et FX raï.
+
+La banque A démarre avec un kit raï complet de 16 pads. Le bouton Beat Auto produit également un groove raï.
