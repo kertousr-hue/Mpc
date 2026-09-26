@@ -29,7 +29,8 @@ test('open raï real+ kit adds real accordion trumpet and guitar recordings',()=
 
 test('gasba and guellal are declared as licensed gaps instead of being faked',()=>{
   assert.deepEqual(kit.LICENSED_GAPS.map(x=>x.instrument),['Gasba','Guellal']);
-  assert.ok(kit.LICENSED_GAPS.every(x=>x.reason&&x.candidate));
+  assert.ok(kit.LICENSED_GAPS.every(x=>x.reason&&x.nextStep==='commercial-source-to-validate'));
+  assert.ok(kit.LICENSED_GAPS.every(x=>!x.candidate));
   assert.ok(kit.OPEN_LAYOUT.every(x=>!['Gasba','Guellal'].includes(x.instrument)));
 });
 
