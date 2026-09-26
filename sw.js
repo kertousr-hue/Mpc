@@ -1,9 +1,14 @@
-const CACHE = 'mpc-studio-v24-groovebox-v2';
+const CACHE = 'mpc-studio-v25-mixer-fx-automation';
 const SHELL = [
   './',
   './index.html',
   './styles.css',
   './app.js',\n  './sequencer-core.js',\n  './sequencer-v2.js',
+  './automation.js',
+  './automation-core.js',
+  './audio-engine-v2.js',
+  './fx-rack.js',
+  './mixer-core.js',
   './api-services.js',
   './api-dj.js',
   './api-dj.css',
