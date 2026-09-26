@@ -24,3 +24,11 @@ test('PWA cache is bumped for Raï Real+ and contains every local startup asset'
   assert.ok(assets.includes('./rai-real-kit.js'));
   for(const asset of assets) assert.ok(sw.includes(JSON.stringify(asset)), 'missing from SHELL: '+asset);
 });
+
+
+test('PWA source files do not contain injected literal newline escapes between assets',()=>{
+  const html=fs.readFileSync('index.html','utf8');
+  const sw=fs.readFileSync('sw.js','utf8');
+  assert.doesNotMatch(html,/<\/script>\\n<script/i);
+  assert.doesNotMatch(sw,/,\\n\s*["']/);
+});
