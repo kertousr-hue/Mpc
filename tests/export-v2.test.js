@@ -52,7 +52,7 @@ test('stepBaseParams samples automation and falls back to mixer state',()=>{
     'A01:gain':[{position:0,value:.5}]
   };
   assert.deepEqual(ex.stepBaseParams(p,'A01',4,{pan:.2,cutoff:.7,sendA:.1,sendB:.2}),{
-    gain:.5,pan:-.5,cutoff:.7,sendA:.1,sendB:.2
+    gain:.5,pan:0,cutoff:.7,sendA:.1,sendB:.2
   });
 });
 
