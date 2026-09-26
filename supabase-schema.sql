@@ -109,7 +109,8 @@ create table if not exists public.sonilo_generation_log (
 );
 
 alter table public.sonilo_generation_log enable row level security;
-grant select, insert, delete on public.sonilo_generation_log to authenticated;
+grant select, insert on public.sonilo_generation_log to authenticated;
+revoke delete on public.sonilo_generation_log from authenticated;
 
 drop policy if exists "sonilo_generation_select_own" on public.sonilo_generation_log;
 create policy "sonilo_generation_select_own"
@@ -124,11 +125,6 @@ to authenticated
 with check ((select auth.uid()) = user_id);
 
 drop policy if exists "sonilo_generation_delete_own" on public.sonilo_generation_log;
-create policy "sonilo_generation_delete_own"
-on public.sonilo_generation_log for delete
-to authenticated
-using ((select auth.uid()) = user_id);
-
 
 create index if not exists sonilo_generation_log_user_created_idx
 on public.sonilo_generation_log (user_id, created_at desc);
@@ -141,7 +137,8 @@ create table if not exists public.sonilo_tasks (
 );
 
 alter table public.sonilo_tasks enable row level security;
-grant select, insert on public.sonilo_tasks to authenticated;
+grant select on public.sonilo_tasks to authenticated;
+revoke insert, update, delete on public.sonilo_tasks from authenticated;
 
 drop policy if exists "sonilo_tasks_select_own" on public.sonilo_tasks;
 create policy "sonilo_tasks_select_own"
@@ -150,10 +147,6 @@ to authenticated
 using ((select auth.uid()) = user_id);
 
 drop policy if exists "sonilo_tasks_insert_own" on public.sonilo_tasks;
-create policy "sonilo_tasks_insert_own"
-on public.sonilo_tasks for insert
-to authenticated
-with check ((select auth.uid()) = user_id);
 
 create index if not exists sonilo_tasks_user_created_idx
 on public.sonilo_tasks (user_id, created_at desc);
@@ -213,31 +206,5 @@ revoke all on function public.reserve_sonilo_generation(text) from public, anon;
 grant execute on function public.reserve_sonilo_generation(text) to authenticated;
 
 
-create or replace function public.record_sonilo_task(p_task_id text, p_kind text)
-returns void
-language plpgsql
-security invoker
-set search_path = public
-as $$
-declare
-  uid uuid := auth.uid();
-begin
-  if uid is null then
-    raise exception 'auth_required';
-  end if;
+drop function if exists public.record_sonilo_task(text, text);
 
-  if p_kind not in ('music','sfx') then
-    raise exception 'invalid_type';
-  end if;
-
-  if p_task_id !~ '^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$' then
-    raise exception 'invalid_task_id';
-  end if;
-
-  insert into public.sonilo_tasks(task_id, user_id, kind)
-  values (p_task_id, uid, p_kind);
-end;
-$$;
-
-revoke all on function public.record_sonilo_task(text, text) from public, anon;
-grant execute on function public.record_sonilo_task(text, text) to authenticated;
