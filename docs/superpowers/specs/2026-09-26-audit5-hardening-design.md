@@ -146,11 +146,12 @@ Le bridge Python supporte deux transports :
 
 En HTTPS :
 - le bridge sert l’app et l’API VST sur la même origine HTTPS ;
+- le mode recommandé consiste à ouvrir MPC Studio depuis l’URL HTTPS LAN du Bridge, ce qui conserve un Secure Context sans requête cross-origin ;
 - `vst-bridge.js` accepte `https://` sur localhost/IP privée ;
-- depuis la version Vercel HTTPS, un bridge HTTPS privé est autorisé ;
+- un appel direct depuis Vercel HTTPS vers un bridge HTTPS privé n’est utilisé que si le navigateur autorise explicitement l’accès au réseau local et si l’origine est autorisée par le Bridge ;
 - un bridge HTTP privé reste refusé depuis une page HTTPS.
 
-Le bridge ne génère pas de certificat lui-même. La documentation explique qu’un certificat doit être approuvé sur les appareils qui l’utilisent. Le token long de session, la limitation de tentatives et la non-exposition des chemins Windows restent inchangés.
+Le serveur HTTPS ajoute une allowlist d’origines pour le mode cross-origin optionnel et répond correctement aux preflights de réseau privé lorsque le navigateur les envoie. Le bridge ne génère pas de certificat lui-même. La documentation explique qu’un certificat doit être approuvé sur les appareils qui l’utilisent. Le token long de session, la limitation de tentatives et la non-exposition des chemins Windows restent inchangés.
 
 ## 5. PWA, CI et déploiement
 
