@@ -100,14 +100,13 @@ async function authenticatedUserId(req: Request) {
   }
 }
 
-async function rollback(reservationId: number) {
-  const url = Deno.env.get('SUPABASE_URL') || ''
-  const serviceRole = serviceRoleKey()
-  if (!url || !serviceRole || !Number.isFinite(reservationId) || reservationId <= 0) return false
+async function rollback(req: Request, reservationId: number) {
+  const ctx = databaseContext(req)
+  if (!ctx.url || !ctx.apikey || !ctx.authorization || !Number.isFinite(reservationId) || reservationId <= 0) return false
   try {
-    const response = await fetch(`${url}/rest/v1/sonilo_generation_log?id=eq.${encodeURIComponent(String(reservationId))}`, {
+    const response = await fetch(`${ctx.url}/rest/v1/sonilo_generation_log?id=eq.${encodeURIComponent(String(reservationId))}`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${serviceRole}`, apikey: serviceRole },
+      headers: { Authorization: ctx.authorization, apikey: ctx.apikey },
     })
     return response.ok
   } catch (_) {
@@ -188,13 +187,13 @@ Deno.serve(async (req: Request) => {
       body: form,
     })
   } catch (_) {
-    await rollback(reservationId)
+    await rollback(req, reservationId)
     return json({ error: { code: 'upstream_unreachable' } }, 502)
   }
 
   if (!upstream.ok) {
     const error = upstreamError(upstream.status, upstream.headers.get('Retry-After'))
-    await rollback(reservationId)
+    await rollback(req, reservationId)
     return json({ error }, upstream.status === 429 ? 429 : 502, error.retryAfter ? { 'Retry-After': String(error.retryAfter) } : {})
   }
 
@@ -202,18 +201,18 @@ Deno.serve(async (req: Request) => {
   try {
     data = await upstream.json()
   } catch (_) {
-    await rollback(reservationId)
+    await rollback(req, reservationId)
     return json({ error: { code: 'invalid_upstream_response' } }, 502)
   }
 
   const taskId = String(data?.task_id || '')
   if (!taskId) {
-    await rollback(reservationId)
+    await rollback(req, reservationId)
     return json({ error: { code: 'missing_task_id' } }, 502)
   }
 
   if (!await recordTask(taskId, input.type, userId)) {
-    await rollback(reservationId)
+    await rollback(req, reservationId)
     return json({ error: { code: 'task_guard_unavailable' } }, 503)
   }
 
