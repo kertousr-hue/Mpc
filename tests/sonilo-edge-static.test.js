@@ -65,3 +65,15 @@ test('Sonilo task checks ownership before calling upstream',()=>{
   assert.match(task,/task_not_found/);
   assert.ok(task.indexOf('ownsTask') < task.indexOf('tasks/'));
 });
+
+
+test('authenticated clients cannot erase quota rows or forge task ownership',()=>{
+  const schema=read('supabase-schema.sql');
+  const gen=read('supabase/functions/sonilo-generate/index.ts');
+  assert.doesNotMatch(schema,/grant\s+select,\s*insert,\s*delete\s+on\s+public\.sonilo_generation_log\s+to\s+authenticated/i);
+  assert.doesNotMatch(schema,/create policy "sonilo_generation_delete_own"/i);
+  assert.doesNotMatch(schema,/grant\s+select,\s*insert\s+on\s+public\.sonilo_tasks\s+to\s+authenticated/i);
+  assert.match(schema,/grant\s+select\s+on\s+public\.sonilo_tasks\s+to\s+authenticated/i);
+  assert.match(gen,/SUPABASE_SERVICE_ROLE_KEY/);
+  assert.match(gen,/\/auth\/v1\/user/);
+});
