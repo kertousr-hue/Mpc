@@ -89,3 +89,29 @@ test('expandStepEvents creates bounded ratchets', () => {
   assert.ok(events.every(e=>e.time>=3 && e.time<3.16));
   assert.ok(events[0].velocity>.5);
 });
+
+
+test('negative micro timing can schedule before nominal step but not before safeTime', () => {
+  const events=core.expandStepEvents({step:{on:true,micro:-.4},stepIndex:2,baseTime:10,stepDuration:.25,safeTime:9.9,cycleSeed:'x',seedKey:'A01'});
+  assert.equal(events.length,1);
+  assert.ok(events[0].time<10);
+  assert.ok(events[0].time>=9.9);
+});
+
+test('probability seed includes pad identity', () => {
+  const step={on:true,probability:.5};
+  let differs=false;
+  for(let i=0;i<64;i++){
+    const a=core.expandStepEvents({step,stepIndex:i,baseTime:i,stepDuration:.1,cycleSeed:'cycle',seedKey:'A01'}).length;
+    const b=core.expandStepEvents({step,stepIndex:i,baseTime:i,stepDuration:.1,cycleSeed:'cycle',seedKey:'A02'}).length;
+    if(a!==b){differs=true;break}
+  }
+  assert.equal(differs,true);
+});
+
+test('ratchets stay inside the current step after swing and positive micro timing', () => {
+  const events=core.expandStepEvents({step:{on:true,micro:.49,ratchet:8},stepIndex:1,baseTime:5,stepDuration:.25,safeTime:4.9,swing:.7,swingLane:'odd',cycleSeed:'x',seedKey:'A01'});
+  assert.equal(events.length,8);
+  assert.ok(events.every(e=>e.time<5.25));
+  assert.ok(events.every(e=>e.restoreTime<5.25));
+});
