@@ -115,12 +115,12 @@
     {
       instrument:'Gasba',
       reason:'Aucune source gratuite isolée avec licence de redistribution suffisamment sûre trouvée.',
-      candidate:'Zero-G Middle Eastern Sounds'
+      nextStep:'commercial-source-to-validate'
     },
     {
       instrument:'Guellal',
       reason:'Aucune source gratuite isolée avec licence de redistribution suffisamment sûre trouvée.',
-      candidate:'Zero-G Middle Eastern Sounds'
+      nextStep:'commercial-source-to-validate'
     }
   ];
 
