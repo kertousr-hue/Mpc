@@ -1,34 +1,43 @@
-const CACHE = 'mpc-studio-v25-mixer-fx-automation';
+const CACHE = 'mpc-studio-v26-groovebox-complete';
 const SHELL = [
-  './',
-  './index.html',
-  './styles.css',
-  './app.js',\n  './sequencer-core.js',\n  './sequencer-v2.js',
-  './automation.js',
-  './automation-core.js',
-  './audio-engine-v2.js',
-  './fx-rack.js',
-  './mixer-core.js',
-  './api-services.js',
-  './api-dj.js',
-  './api-dj.css',
-  './pwa.js',
-  './audio-tap.js',
-  './dj.js',
-  './dj.css',
-  './dj-pad-options.js',
-  './dj-sync.js',
-  './dj-live-layer.js',
-  './dj-recorder.js',
-  './dj-android-recorder.js',
-  './virtualdj.js',
-  './virtualdj.css',
-  './virtualdj-files.js',
-  './virtualdj-catalogs.js',
-  './supabase-config.js',
-  './manifest.webmanifest',
-  './icons/icon-192.png',
-  './icons/icon-512.png'
+  "./",
+  "./index.html",
+  "./styles.css",
+  "./app.js",
+  "./sequencer-core.js",
+  "./sequencer-v2.js",
+  "./mixer-core.js",
+  "./fx-rack.js",
+  "./audio-engine-v2.js",
+  "./automation-core.js",
+  "./automation.js",
+  "./midi-core.js",
+  "./midi.js",
+  "./performance-v2.js",
+  "./export-v2.js",
+  "./sonilo-core.js",
+  "./sonilo.js",
+  "./vst-bridge.js",
+  "./api-services.js",
+  "./api-dj.js",
+  "./api-dj.css",
+  "./pwa.js",
+  "./audio-tap.js",
+  "./dj.js",
+  "./dj.css",
+  "./dj-pad-options.js",
+  "./dj-sync.js",
+  "./dj-live-layer.js",
+  "./dj-recorder.js",
+  "./dj-android-recorder.js",
+  "./virtualdj.js",
+  "./virtualdj.css",
+  "./virtualdj-files.js",
+  "./virtualdj-catalogs.js",
+  "./supabase-config.js",
+  "./manifest.webmanifest",
+  "./icons/icon-192.png",
+  "./icons/icon-512.png"
 ];
 
 self.addEventListener('install', event => {
@@ -42,9 +51,7 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(
-        keys.filter(key => key !== CACHE).map(key => caches.delete(key))
-      ))
+      .then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });
@@ -52,8 +59,11 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const request = event.request;
   if (request.method !== 'GET') return;
-
   const url = new URL(request.url);
+
+  // Never cache authenticated AI function traffic or temporary Sonilo media.
+  if (url.pathname.includes('/functions/v1/sonilo-') || url.hostname.includes('sonilo')) return;
+
   if (url.origin !== self.location.origin) {
     if (url.hostname === 'upload.wikimedia.org') {
       event.respondWith(
@@ -81,11 +91,7 @@ self.addEventListener('fetch', event => {
           caches.open(CACHE).then(cache => cache.put('./index.html', copy));
           return response;
         })
-        .catch(async () => {
-          return await caches.match(request) ||
-            await caches.match('./index.html') ||
-            await caches.match('./');
-        })
+        .catch(async () => await caches.match(request) || await caches.match('./index.html') || await caches.match('./'))
     );
     return;
   }
@@ -101,7 +107,6 @@ self.addEventListener('fetch', event => {
           return response;
         })
         .catch(() => cached);
-
       return cached || network;
     })
   );
