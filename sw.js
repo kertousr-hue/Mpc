@@ -1,4 +1,4 @@
-const CACHE = 'mpc-studio-v29-rai-defaults';
+const CACHE = 'mpc-studio-v30-audit5';
 const SHELL = [
   "./",
   "./index.html",
