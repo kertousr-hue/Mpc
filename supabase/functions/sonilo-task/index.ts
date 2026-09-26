@@ -42,6 +42,35 @@ function upstreamError(status: number, retryAfter: string | null) {
   return { code, status, retryAfter: status === 429 ? Number(retryAfter) || null : null }
 }
 
+function projectPublishableKey() {
+  const legacy = Deno.env.get('SUPABASE_ANON_KEY')
+  if (legacy) return legacy
+  try {
+    const keys = JSON.parse(Deno.env.get('SUPABASE_PUBLISHABLE_KEYS') || '{}')
+    return String(keys.default || '')
+  } catch (_) {
+    return ''
+  }
+}
+
+async function ownsTask(req: Request, taskId: string) {
+  const url = Deno.env.get('SUPABASE_URL') || ''
+  const apikey = projectPublishableKey()
+  const authorization = req.headers.get('Authorization') || ''
+  if (!url || !apikey || !authorization) return { ok: false, owned: false }
+
+  try {
+    const response = await fetch(`${url}/rest/v1/sonilo_tasks?select=task_id&task_id=eq.${encodeURIComponent(taskId)}&limit=1`, {
+      headers: { Authorization: authorization, apikey },
+    })
+    if (!response.ok) return { ok: false, owned: false }
+    const rows = await response.json()
+    return { ok: true, owned: Array.isArray(rows) && rows.length > 0 }
+  } catch (_) {
+    return { ok: false, owned: false }
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return json({ error: { code: 'method_not_allowed' } }, 405)
@@ -51,6 +80,10 @@ Deno.serve(async (req: Request) => {
   try { body = await req.json() } catch (_) { return json({ error: { code: 'invalid_request' } }, 400) }
   const taskId = String(body?.taskId || '')
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$/.test(taskId)) return json({ error: { code: 'invalid_task_id' } }, 400)
+
+  const ownership = await ownsTask(req, taskId)
+  if (!ownership.ok) return json({ error: { code: 'task_guard_unavailable' } }, 503)
+  if (!ownership.owned) return json({ error: { code: 'task_not_found' } }, 404)
 
   const apiKey = Deno.env.get('SONILO_API_KEY') || Deno.env.get('Sonilo-api-key')
   if (!apiKey) return json({ error: { code: 'sonilo_not_configured' } }, 503)

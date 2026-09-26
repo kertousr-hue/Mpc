@@ -1,10 +1,13 @@
 const $=id=>document.getElementById(id);
 const BANKS=['A','B','C','D'], STEPS=16, PATTERNS=8;
 const RAI_FACTORY=window.MPCRaiFactory;
+const CLOUD_PROJECT=window.MPCCloudProjectCore;
 if(!RAI_FACTORY)throw new Error('MPCRaiFactory requis');
+if(!CLOUD_PROJECT)throw new Error('MPCCloudProjectCore requis');
+const cloudProjectState=CLOUD_PROJECT.createCloudProjectState();
 const FACTORY_SPEC=RAI_FACTORY.FACTORY_SPEC;
 const FACTORY=RAI_FACTORY.buildFactory();
-const DEFAULT_NAMES=RAI_FACTORY.DEFAULT_RAI_BANK.map(i=>FACTORY[i].name);
+const DEFAULT_NAMES=RAI_FACTORY.bankIndices('A').map(i=>FACTORY[i].name);
 const ORIENTAL_SOURCES=[
  {instrument:'Darbuka',count:8,url:'https://upload.wikimedia.org/wikipedia/commons/e/ed/Darbuka.ogg',source:'https://commons.wikimedia.org/wiki/File:Darbuka.ogg',creator:'Cassa342',license:'CC BY-SA 4.0'},
  {instrument:'Riq',count:4,url:'https://upload.wikimedia.org/wikipedia/commons/d/db/Riq_demo.ogg',source:'https://commons.wikimedia.org/wiki/File:Riq_demo.ogg',creator:'Derbake',license:'CC BY-SA 4.0'},
@@ -21,13 +24,12 @@ const decodedCache=new Map();
 
 function factoryIndexByName(name){const i=FACTORY.findIndex(x=>x.name===name);return Math.max(0,i)}
 const pads={};
-for(const b of BANKS) for(let i=0;i<16;i++){
- const id=b+String(i+1).padStart(2,'0');
- let sample=null;
- if(b==='A'){
-   sample={kind:'factory',factoryIndex:RAI_FACTORY.DEFAULT_RAI_BANK[i]};
+for(const b of BANKS){
+ const indices=RAI_FACTORY.bankIndices(b);
+ for(let i=0;i<16;i++){
+  const id=b+String(i+1).padStart(2,'0'),factoryIndex=indices[i],sample={kind:'factory',factoryIndex};
+  pads[id]={id,name:FACTORY[factoryIndex].name,gain:1,pitch:0,start:0,end:1,muted:false,loop:false,sample,userBlob:null,buffer:null,cloudPath:null};
  }
- pads[id]={id,name:DEFAULT_NAMES[i],gain:1,pitch:0,start:0,end:1,muted:false,loop:false,sample,userBlob:null,buffer:null,cloudPath:null};
 }
 const patterns=Array.from({length:PATTERNS},()=>Object.fromEntries(BANKS.flatMap(b=>Array.from({length:16},(_,i)=>[b+String(i+1).padStart(2,'0'),Array(STEPS).fill(false)]))));
 const INITIAL_RAI_BEAT=RAI_FACTORY.createRaiBeat();
@@ -54,9 +56,12 @@ function trackSource(src){activeSources.add(src);const old=src.onended;src.onend
 function stopAllSources(){for(const src of [...activeSources]){try{src.stop()}catch(e){}activeSources.delete(src)}stopRepeat()}
 function isPadAudible(id){const p=pads[id];return !!p&&!p.muted&&(soloPads.size===0||soloPads.has(id))}
 
-function createNoise(ac,seconds){
- const b=ac.createBuffer(1,Math.max(1,Math.floor(ac.sampleRate*seconds)),ac.sampleRate),d=b.getChannelData(0);
- for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; return b;
+const noiseBuffers=new WeakMap();
+function getNoiseBuffer(ac){
+ let b=noiseBuffers.get(ac);if(b)return b;
+ const length=Math.max(1,Math.floor(ac.sampleRate*2));b=ac.createBuffer(1,length,ac.sampleRate);const d=b.getChannelData(0);let x=0x6d2b79f5;
+ for(let i=0;i<d.length;i++){x^=x<<13;x^=x>>>17;x^=x<<5;d[i]=((x>>>0)/4294967295)*2-1}
+ noiseBuffers.set(ac,b);return b;
 }
 function gainEnv(ac,dest,time,vol,decay){
  const g=ac.createGain(); g.gain.setValueAtTime(Math.max(.0001,vol),time); g.gain.exponentialRampToValueAtTime(.0001,time+decay); g.connect(dest); return g;
@@ -68,7 +73,7 @@ function oscHit(ac,dest,time,type,freq,endFreq,vol,decay){
 }
 function noiseHit(ac,dest,time,vol,decay,filterType='highpass',freq=4000,q=.7){
  const s=trackSource(ac.createBufferSource()),f=ac.createBiquadFilter(),g=gainEnv(ac,dest,time,vol,decay);
- s.buffer=createNoise(ac,Math.max(decay,.03));f.type=filterType;f.frequency.value=freq;f.Q.value=q;s.connect(f);f.connect(g);s.start(time);s.stop(time+decay+.03);
+ s.buffer=getNoiseBuffer(ac);f.type=filterType;f.frequency.value=freq;f.Q.value=q;s.connect(f);f.connect(g);s.start(time);s.stop(time+decay+.03);
 }
 function raiToneHit(ac,dest,time,freq,types,vol,duration,cutoff=3200,attack=.006,detuneSpread=0){
  const filter=ac.createBiquadFilter(),g=ac.createGain();filter.type='lowpass';filter.frequency.value=cutoff;filter.Q.value=.7;filter.connect(g);g.connect(dest);
@@ -213,10 +218,10 @@ async function loadOrientalKit(button=null){
  finally{if(button)button.disabled=false}
 }
 
-function loadFactoryKit(offset=0){for(let i=0;i<16;i++){const s=FACTORY[(offset+i)%FACTORY.length],p=pads[padId(bank,i)];p.sample={kind:'factory',factoryIndex:(offset+i)%FACTORY.length};p.name=s.name;p.buffer=null;p.userBlob=null;p.cloudPath=null;p.externalMeta=null}renderAll();status('Kit chargé sur banque '+bank)}
+function loadFactoryKit(indices){const list=Array.isArray(indices)&&indices.length===16?indices:RAI_FACTORY.bankIndices(bank);for(let i=0;i<16;i++){const factoryIndex=Number(list[i]),s=FACTORY[factoryIndex],p=pads[padId(bank,i)];if(!s)continue;p.sample={kind:'factory',factoryIndex};p.name=s.name;p.buffer=null;p.userBlob=null;p.cloudPath=null;p.externalMeta=null}renderAll();status('Kit chargé sur banque '+bank)}
 function renderKitBrowser(){const root=$('sampleList');$('categories').innerHTML='';root.innerHTML='';
  const oriental=document.createElement('div');oriental.className='sample realKit';oriental.innerHTML=`<div class="sampleWave"></div><div><strong>🥁 KIT RAÏ RÉEL</strong><small>Darbuka · Riq · Bendir · 16 vrais hits · banque ${bank}</small></div><button>CHARGER</button>`;const ob=oriental.querySelector('button');ob.onclick=()=>loadOrientalKit(ob);root.appendChild(oriental);
- RAI_FACTORY.RAI_KITS.forEach(kit=>{const row=document.createElement('div');row.className='sample';row.innerHTML=`<div class="sampleWave"></div><div><strong>${kit.name}</strong><small>${kit.description} · 16 sons raï · banque ${bank}</small></div><button>CHARGER</button>`;row.querySelector('button').onclick=()=>loadFactoryKit(kit.offset);root.appendChild(row)})}
+ RAI_FACTORY.RAI_KITS.forEach(kit=>{const row=document.createElement('div');row.className='sample';row.innerHTML=`<div class="sampleWave"></div><div><strong>${kit.name}</strong><small>${kit.description} · 16 sons raï · banque ${bank}</small></div><button>CHARGER</button>`;row.querySelector('button').onclick=()=>loadFactoryKit(kit.indices);root.appendChild(row)})}
 function renderProjectBrowser(){const root=$('sampleList');$('categories').innerHTML='';root.innerHTML='';const has=!!localStorage.getItem('mpc-studio-project');const row=document.createElement('div');row.className='sample';row.innerHTML=`<div class="sampleWave"></div><div><strong>Projet local</strong><small>${has?'Sauvegarde disponible':'Aucune sauvegarde'}</small></div><button ${has?'':'disabled'}>OUVRIR</button>`;if(has)row.querySelector('button').onclick=loadLocal;root.appendChild(row)}
 function openMainMenu(){let d=$('mainMenuDialog');if(!d){d=document.createElement('dialog');d.id='mainMenuDialog';d.innerHTML='<div class="cloudCard"><div class="dialogHead"><div><small>MPC STUDIO</small><h2>Menu</h2></div><button id="mainMenuClose">✕</button></div><button id="menuSave">💾 SAUVER LOCAL</button><button id="menuLoad">📂 OUVRIR LOCAL</button><button id="menuStop">■ STOP AUDIO</button><button id="menuCloud">☁ SUPABASE</button></div>';document.body.appendChild(d);$('mainMenuClose').onclick=()=>d.close();$('menuSave').onclick=saveLocal;$('menuLoad').onclick=loadLocal;$('menuStop').onclick=stopPlayback;$('menuCloud').onclick=()=>{$('cloudDialog').showModal();cloudRefresh()}}if(!d.open)d.showModal()}
 function renderTrackSelect(){$('trackSelect').innerHTML='';for(let i=0;i<16;i++){const o=new Option(`${i+1} · ${pads[padId(bank,i)].name}`,i);$('trackSelect').add(o)}$('trackSelect').value=selectedTrack}
@@ -279,10 +284,14 @@ async function reverseSelected(){
  const p=selected();try{await ensureEditableSample(p)}catch(e){status(e.message);return}ensureAudio();const b=audioCtx.createBuffer(p.buffer.numberOfChannels,p.buffer.length,p.buffer.sampleRate);for(let ch=0;ch<b.numberOfChannels;ch++){const src=p.buffer.getChannelData(ch),dst=b.getChannelData(ch);for(let i=0;i<src.length;i++)dst[i]=src[src.length-1-i]}p.buffer=b;p.userBlob=new Blob([audioBufferToWav(b)],{type:'audio/wav'});p.sample={kind:'user'};p.cloudPath=null;drawWave();renderEditor();status('Sample inversé')
 }
 function clearPad(){const p=selected();p.sample=null;p.buffer=null;p.userBlob=null;p.cloudPath=null;p.externalMeta=null;p.name='Pad '+p.id;p.start=0;p.end=1;p.pitch=0;p.gain=1;renderPads();renderEditor()}
+function ensureRaiBeatPads(bankName,beat){
+ const fallback=RAI_FACTORY.bankIndices(bankName);
+ Object.keys(beat||{}).forEach(slotKey=>{const slot=Number(slotKey),id=padId(bankName,slot),p=pads[id];if(!p||p.sample)return;const factoryIndex=fallback[slot],s=FACTORY[factoryIndex];if(!s)return;p.sample={kind:'factory',factoryIndex};p.name=s.name;p.buffer=null;p.userBlob=null;p.cloudPath=null;p.externalMeta=null});
+}
 function randomBeat(){
- const pat=patterns[patternIndex];for(const id of Object.keys(pat))pat[id].fill(false);const beat=RAI_FACTORY.createRaiBeat();
+ const pat=patterns[patternIndex];for(const id of Object.keys(pat))pat[id].fill(false);const beat=RAI_FACTORY.createRaiBeat();ensureRaiBeatPads(bank,beat);
  Object.entries(beat).forEach(([slot,steps])=>{const id=padId(bank,Number(slot));for(const s of steps)pat[id][s]=true});
- renderSteps();status('Beat automatique RAÏ créé sur banque '+bank)}
+ renderPads();renderSteps();status('Beat automatique RAÏ créé sur banque '+bank)}
 function randomKit(){for(let i=0;i<16;i++){const id=padId(bank,i),s=FACTORY[Math.floor(Math.random()*FACTORY.length)];pads[id].sample={kind:'factory',factoryIndex:FACTORY.indexOf(s)};pads[id].name=s.name;pads[id].buffer=null;pads[id].userBlob=null;pads[id].cloudPath=null;pads[id].externalMeta=null}renderPads();renderEditor();renderTrackSelect();status('Kit aléatoire chargé')}
 
 function serializable(includeCloud=true){
@@ -300,12 +309,12 @@ function openAudioDb(){return new Promise((resolve,reject)=>{const r=indexedDB.o
 async function saveAudioDb(){const db=await openAudioDb();await new Promise((resolve,reject)=>{const tx=db.transaction('audio','readwrite'),st=tx.objectStore('audio');st.clear();for(const [id,p] of Object.entries(pads))if(p.userBlob)st.put(p.userBlob,id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}
 async function restoreAudioDb(){const db=await openAudioDb();await Promise.all(Object.keys(pads).map(id=>new Promise((resolve)=>{const r=db.transaction('audio').objectStore('audio').get(id);r.onsuccess=async()=>{if(r.result){pads[id].userBlob=r.result;try{pads[id].buffer=await decodeBlob(r.result);pads[id].sample={kind:'user'}}catch(e){}}resolve()};r.onerror=resolve})));db.close()}
 async function saveLocal(){try{localStorage.setItem('mpc-studio-project',JSON.stringify(serializable()));await saveAudioDb();status('Projet + samples sauvegardés localement')}catch(e){status('Sauvegarde locale : '+e.message)}}
-async function loadLocal(){const raw=localStorage.getItem('mpc-studio-project');if(!raw)return;try{await applyProject(JSON.parse(raw));await restoreAudioDb();renderAll();status('Projet local + samples ouverts')}catch(e){status('Ouverture locale : '+e.message)}}
+async function loadLocal(){const raw=localStorage.getItem('mpc-studio-project');if(!raw)return;try{CLOUD_PROJECT.resetActiveProject(cloudProjectState);await applyProject(JSON.parse(raw));await restoreAudioDb();renderAll();status('Projet local + samples ouverts')}catch(e){status('Ouverture locale : '+e.message)}}
 function downloadText(name,text,type='application/json'){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000)}
 async function blobToDataUrl(blob){return await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(r.error);r.readAsDataURL(blob)})}
 async function dataUrlToBlob(url){const r=await fetch(url);return await r.blob()}
 async function exportProject(){try{const d=serializable();d.audioFiles={};for(const [id,p] of Object.entries(pads))if(p.userBlob)d.audioFiles[id]=await blobToDataUrl(p.userBlob);downloadText(($('projectName').value||'projet')+'.mpc.json',JSON.stringify(d,null,2));status('Projet + samples exportés')}catch(e){status('Export projet : '+e.message)}}
-async function importProjectFile(f){try{const d=JSON.parse(await f.text());await applyProject(d);if(d.audioFiles){for(const [id,url] of Object.entries(d.audioFiles))if(pads[id]){const blob=await dataUrlToBlob(url);pads[id].userBlob=blob;pads[id].buffer=await decodeBlob(blob);pads[id].sample={kind:'user'}}}renderAll();status('Projet + samples importés')}catch(e){status('Import impossible : '+e.message)}}
+async function importProjectFile(f){try{CLOUD_PROJECT.resetActiveProject(cloudProjectState);const d=JSON.parse(await f.text());await applyProject(d);if(d.audioFiles){for(const [id,url] of Object.entries(d.audioFiles))if(pads[id]){const blob=await dataUrlToBlob(url);pads[id].userBlob=blob;pads[id].buffer=await decodeBlob(blob);pads[id].sample={kind:'user'}}}renderAll();status('Projet + samples importés')}catch(e){status('Import impossible : '+e.message)}}
 
 async function renderWav(){
  ensureAudio();const bpm=+$('bpm').value||92,dur=60/bpm*4+.5,off=new OfflineAudioContext(2,Math.ceil(audioCtx.sampleRate*dur),audioCtx.sampleRate),mg=off.createGain();mg.gain.value=+$('master').value/100;mg.connect(off.destination);
@@ -325,12 +334,17 @@ async function initSupabase(){
  const c=getSbConfig();$('sbUrl').value=c.url;$('sbKey').value=c.key;if(!c.url||!safeKey(c.key)||!window.supabase){$('authState').textContent='Supabase non configuré';return}
  try{sb=window.supabase.createClient(c.url,c.key);const {data}=await sb.auth.getUser();sbUser=data.user||null;updateCloudState();sb.auth.onAuthStateChange((_e,s)=>{sbUser=s?.user||null;updateCloudState()})}catch(e){$('authState').textContent='Erreur Supabase : '+e.message}
 }
-function updateCloudState(){$('cloudBtn').classList.toggle('connected',!!sbUser);$('authState').textContent=sbUser?('Connecté : '+sbUser.email):(sb?'Supabase configuré · non connecté':'Supabase non configuré')}
+function updateCloudState(){if(!sbUser)CLOUD_PROJECT.resetActiveProject(cloudProjectState);$('cloudBtn').classList.toggle('connected',!!sbUser);$('authState').textContent=sbUser?('Connecté : '+sbUser.email):(sb?'Supabase configuré · non connecté':'Supabase non configuré')}
 async function cloudSave(){
  if(!sbUser)return status('Connecte-toi à Supabase');try{
-   const initial=serializable();const {data:row,error}=await sb.from('music_projects').insert({user_id:sbUser.id,name:initial.name,bpm:initial.bpm,swing:initial.swing,project_data:initial}).select('id').single();if(error)throw error;
-   for(const [id,p] of Object.entries(pads))if(p.userBlob){const ext=(p.userBlob.type||'audio/webm').includes('mpeg')?'mp3':(p.userBlob.type||'').includes('wav')?'wav':'webm',path=`${sbUser.id}/${row.id}/${id}.${ext}`;const up=await sb.storage.from('music-samples').upload(path,p.userBlob,{upsert:true,contentType:p.userBlob.type||'application/octet-stream'});if(up.error)throw up.error;p.cloudPath=path}
-   const finalData=serializable();const {error:uerr}=await sb.from('music_projects').update({project_data:finalData,updated_at:new Date().toISOString()}).eq('id',row.id);if(uerr)throw uerr;status('Projet sauvegardé dans Supabase');await cloudRefresh()
+   const initial=serializable(),operation=CLOUD_PROJECT.saveOperation(cloudProjectState.activeProjectId);let projectId=cloudProjectState.activeProjectId;
+   if(operation==='insert'){
+     const {data:row,error}=await sb.from('music_projects').insert({user_id:sbUser.id,name:initial.name,bpm:initial.bpm,swing:initial.swing,project_data:initial}).select('id').single();if(error)throw error;
+     projectId=row.id;CLOUD_PROJECT.setLoadedProject(cloudProjectState,projectId);
+   }
+   for(const [id,p] of Object.entries(pads))if(p.userBlob){const ext=(p.userBlob.type||'audio/webm').includes('mpeg')?'mp3':(p.userBlob.type||'').includes('wav')?'wav':'webm',path=`${sbUser.id}/${projectId}/${id}.${ext}`;const up=await sb.storage.from('music-samples').upload(path,p.userBlob,{upsert:true,contentType:p.userBlob.type||'application/octet-stream'});if(up.error)throw up.error;p.cloudPath=path}
+   const finalData=serializable();const {data:saved,error:uerr}=await sb.from('music_projects').update({name:finalData.name,bpm:finalData.bpm,swing:finalData.swing,project_data:finalData,updated_at:new Date().toISOString()}).eq('id',projectId).eq('user_id',sbUser.id).select('id').single();if(uerr||!saved)throw uerr||new Error('Projet Cloud introuvable');
+   status(operation==='insert'?'Projet créé dans Supabase':'Projet Cloud mis à jour');await cloudRefresh()
  }catch(e){status('Cloud : '+e.message)}
 }
 async function cloudRefresh(){
@@ -339,7 +353,7 @@ async function cloudRefresh(){
 async function downloadCloudSamples(){
  if(!sb)return;for(const p of Object.values(pads))if(p.cloudPath){const {data,error}=await sb.storage.from('music-samples').download(p.cloudPath);if(!error&&data){p.userBlob=data;p.buffer=await decodeBlob(data);p.sample={kind:'user'}}}
 }
-async function cloudLoad(){const id=$('cloudProjects').value,row=cloudRows.find(r=>r.id===id);if(!row)return;try{await applyProject(row.project_data,true);status('Projet Cloud ouvert')}catch(e){status('Cloud : '+e.message)}}
+async function cloudLoad(){const id=$('cloudProjects').value,row=cloudRows.find(r=>r.id===id);if(!row)return;try{await applyProject(row.project_data,true);CLOUD_PROJECT.setLoadedProject(cloudProjectState,row.id);status('Projet Cloud ouvert')}catch(e){status('Cloud : '+e.message)}}
 
 function renderAll(){document.querySelectorAll('#banks button').forEach(b=>b.classList.toggle('active',b.dataset.bank===bank));renderPads();renderEditor();renderTrackSelect();renderPatternSelect();renderSteps()}
 function bind(){
@@ -371,7 +385,7 @@ function bind(){
  $('loopSeqBtn').onclick=()=>{loopSequence=!loopSequence;$('loopSeqBtn').classList.toggle('active',loopSequence);$('loopSeqBtn').textContent=loopSequence?'↻ LECTURE EN BOUCLE':'→ LECTURE 1 FOIS';status(loopSequence?'Boucle activée':'Lecture unique activée')};$('loopSeqBtn').classList.toggle('active',loopSequence);
  document.querySelectorAll('.bigModes button').forEach(b=>b.onclick=()=>{currentMode=b.dataset.mode;document.body.dataset.mode=currentMode;document.querySelectorAll('.bigModes button').forEach(x=>x.classList.remove('active'));b.classList.add('active');status(b.textContent.trim())});
  $('saveBtn').onclick=saveLocal;$('saveLocalBtn').onclick=saveLocal;$('exportProjectBtn').onclick=exportProject;$('projectImport').onchange=e=>{if(e.target.files[0])importProjectFile(e.target.files[0]);e.target.value=''};$('exportWavBtn').onclick=renderWav;
- $('cloudBtn').onclick=()=>{$('cloudDialog').showModal();cloudRefresh()};$('saveSbBtn').onclick=async()=>{const url=$('sbUrl').value.trim().replace(/\/$/,''),key=$('sbKey').value.trim();if(!/^https:\/\/.+\.supabase\.co$/.test(url)||!safeKey(key))return $('authState').textContent='URL ou Publishable key invalide';localStorage.setItem('mpc-supabase',JSON.stringify({url,key}));sb=null;sbUser=null;await initSupabase();status('Configuration Supabase enregistrée')};
+ $('cloudBtn').onclick=()=>{$('cloudDialog').showModal();cloudRefresh()};$('saveSbBtn').onclick=async()=>{const url=$('sbUrl').value.trim().replace(/\/$/,''),key=$('sbKey').value.trim();if(!/^https:\/\/.+\.supabase\.co$/.test(url)||!safeKey(key))return $('authState').textContent='URL ou Publishable key invalide';localStorage.setItem('mpc-supabase',JSON.stringify({url,key}));CLOUD_PROJECT.resetActiveProject(cloudProjectState);sb=null;sbUser=null;await initSupabase();status('Configuration Supabase enregistrée')};
  $('signInBtn').onclick=async()=>{if(!sb)return;const {error}=await sb.auth.signInWithPassword({email:$('email').value,password:$('password').value});if(error)$('authState').textContent=error.message};
  $('signUpBtn').onclick=async()=>{if(!sb)return;const {error}=await sb.auth.signUp({email:$('email').value,password:$('password').value});$('authState').textContent=error?error.message:'Compte créé. Vérifie ton e-mail si demandé.'};
  $('signOutBtn').onclick=async()=>{if(sb)await sb.auth.signOut()};

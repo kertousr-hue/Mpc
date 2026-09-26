@@ -110,6 +110,7 @@ create table if not exists public.sonilo_generation_log (
 
 alter table public.sonilo_generation_log enable row level security;
 grant select, insert on public.sonilo_generation_log to authenticated;
+revoke delete on public.sonilo_generation_log from authenticated;
 
 drop policy if exists "sonilo_generation_select_own" on public.sonilo_generation_log;
 create policy "sonilo_generation_select_own"
@@ -123,8 +124,32 @@ on public.sonilo_generation_log for insert
 to authenticated
 with check ((select auth.uid()) = user_id);
 
+drop policy if exists "sonilo_generation_delete_own" on public.sonilo_generation_log;
+
 create index if not exists sonilo_generation_log_user_created_idx
 on public.sonilo_generation_log (user_id, created_at desc);
+
+create table if not exists public.sonilo_tasks (
+  task_id text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  kind text not null check (kind in ('music','sfx')),
+  created_at timestamptz not null default now()
+);
+
+alter table public.sonilo_tasks enable row level security;
+grant select on public.sonilo_tasks to authenticated;
+revoke insert, update, delete on public.sonilo_tasks from authenticated;
+
+drop policy if exists "sonilo_tasks_select_own" on public.sonilo_tasks;
+create policy "sonilo_tasks_select_own"
+on public.sonilo_tasks for select
+to authenticated
+using ((select auth.uid()) = user_id);
+
+drop policy if exists "sonilo_tasks_insert_own" on public.sonilo_tasks;
+
+create index if not exists sonilo_tasks_user_created_idx
+on public.sonilo_tasks (user_id, created_at desc);
 
 create or replace function public.reserve_sonilo_generation(p_kind text)
 returns jsonb
@@ -136,6 +161,7 @@ declare
   uid uuid := auth.uid();
   hourly_count integer;
   daily_count integer;
+  reservation_id bigint;
 begin
   if uid is null then
     return jsonb_build_object('allowed', false, 'code', 'auth_required');
@@ -163,10 +189,22 @@ begin
     return jsonb_build_object('allowed', false, 'code', 'rate_limited', 'scope', 'day', 'retryAfter', 86400);
   end if;
 
-  insert into public.sonilo_generation_log(user_id, kind) values (uid, p_kind);
-  return jsonb_build_object('allowed', true, 'hourly', hourly_count + 1, 'daily', daily_count + 1);
+  insert into public.sonilo_generation_log(user_id, kind)
+  values (uid, p_kind)
+  returning id into reservation_id;
+
+  return jsonb_build_object(
+    'allowed', true,
+    'reservationId', reservation_id,
+    'hourly', hourly_count + 1,
+    'daily', daily_count + 1
+  );
 end;
 $$;
 
 revoke all on function public.reserve_sonilo_generation(text) from public, anon;
 grant execute on function public.reserve_sonilo_generation(text) to authenticated;
+
+
+drop function if exists public.record_sonilo_task(text, text);
+
