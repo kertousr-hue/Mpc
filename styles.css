@@ -262,5 +262,19 @@ body[data-mode="creation"] .workspace{grid-template-columns:minmax(500px,1fr) mi
   .midiLearnGrid button,
   .fxSwitches button{min-height:44px}
   .grooveTrackName{min-height:44px}
-  .grooveViews{max-width:100%;overflow-x:auto;padding-bottom:2px}
+  .grooveViews{
+    width:100%;
+    max-width:100%;
+    flex:0 0 100%;
+    display:flex;
+    gap:5px;
+    overflow-x:auto;
+    overflow-y:hidden;
+    position:relative;
+    z-index:5;
+    padding:2px 0 4px;
+    background:#08151e;
+    scrollbar-width:thin
+  }
+  .grooveViews button{flex:0 0 auto;position:relative;z-index:1}
 }
