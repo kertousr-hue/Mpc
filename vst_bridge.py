@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Local MPC Studio VST3 processing bridge.
 
-The browser never loads VST binaries. This process runs on the Windows PC,
-scans installed VST3 plugins, accepts a 16-bit PCM WAV from MPC Studio,
-processes it through one allow-listed installed plugin via Pedalboard, and
-returns a WAV. It does not install or execute plugin-manager installers.
+The bridge serves MPC Studio itself over the LAN so browser requests to VST3
+processing stay same-origin. It scans installed VST3 plugins, accepts a bounded
+16-bit PCM WAV, processes it with one allow-listed plugin through Pedalboard,
+and returns a WAV. It never installs or executes plugin-manager installers.
 """
 from __future__ import annotations
 
@@ -14,15 +14,20 @@ import io
 import json
 import os
 import secrets
+import threading
+import time
 import wave
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from functools import partial
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 import numpy as np
 
 MAX_UPLOAD = 64 * 1024 * 1024
-VERSION = "1.0.0"
+VERSION = "1.1.0"
+AUTH_WINDOW_SECONDS = 60
+AUTH_MAX_FAILURES = 8
 
 
 def plugin_id(path: Path) -> str:
@@ -30,14 +35,20 @@ def plugin_id(path: Path) -> str:
 
 
 def default_vst_dirs() -> list[Path]:
-    raw = []
-    for env in ("CommonProgramFiles", "ProgramFiles", "LOCALAPPDATA"):
-        base = os.getenv(env)
-        if base:
-            raw.append(Path(base) / "VST3" if env != "ProgramFiles" else Path(base) / "Common Files" / "VST3")
+    raw: list[Path] = []
+    common = os.getenv("CommonProgramFiles")
+    program = os.getenv("ProgramFiles")
+    local = os.getenv("LOCALAPPDATA")
+    if common:
+        raw.append(Path(common) / "VST3")
+    if program:
+        raw.append(Path(program) / "Common Files" / "VST3")
+    if local:
+        raw.append(Path(local) / "Programs" / "Common" / "VST3")
+        raw.append(Path(local) / "VST3")
     extra = os.getenv("MPC_VST_PATHS", "")
     raw.extend(Path(x.strip()) for x in extra.split(os.pathsep) if x.strip())
-    out = []
+    out: list[Path] = []
     for p in raw:
         try:
             p = p.resolve()
@@ -68,12 +79,16 @@ def scan_plugins(dirs: list[Path]) -> dict[str, Path]:
 
 def read_wav(raw: bytes) -> tuple[np.ndarray, int]:
     with wave.open(io.BytesIO(raw), "rb") as w:
-        channels, width, rate, frames = w.getnchannels(), w.getsampwidth(), w.getframerate(), w.getnframes()
+        channels = w.getnchannels()
+        width = w.getsampwidth()
+        rate = w.getframerate()
+        frames = w.getnframes()
         if width != 2 or channels not in (1, 2) or rate < 8000 or rate > 192000:
             raise ValueError("WAV PCM 16-bit mono/stéréo requis")
+        if frames <= 0 or frames > rate * 60 * 15:
+            raise ValueError("Durée audio invalide ou supérieure à 15 minutes")
         data = np.frombuffer(w.readframes(frames), dtype="<i2").astype(np.float32) / 32768.0
-    data = data.reshape(-1, channels).T
-    return data, rate
+    return data.reshape(-1, channels).T, rate
 
 
 def write_wav(audio: np.ndarray, rate: int) -> bytes:
@@ -93,57 +108,83 @@ def write_wav(audio: np.ndarray, rate: int) -> bytes:
 
 class Server(ThreadingHTTPServer):
     plugins: dict[str, Path]
-    pin: str
+    token: str
+    auth_failures: dict[str, list[float]]
+    processing_lock: threading.Lock
 
 
-class Handler(BaseHTTPRequestHandler):
-    server_version = "MPCVSTBridge/1.0"
+class Handler(SimpleHTTPRequestHandler):
+    server_version = "MPCVSTBridge/1.1"
 
-    def _cors(self):
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-MPC-PIN")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+    def _security_headers(self):
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Referrer-Policy", "no-referrer")
+
+    def end_headers(self):
+        self._security_headers()
+        super().end_headers()
 
     def _json(self, status: int, data: dict):
         body = json.dumps(data, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
-        self._cors()
         self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
+        super().end_headers()
         self.wfile.write(body)
 
-    def _authorized(self) -> bool:
-        return secrets.compare_digest(str(self.headers.get("X-MPC-PIN", "")), self.server.pin)
+    def _auth(self) -> tuple[bool, int]:
+        ip = str(self.client_address[0])
+        now = time.monotonic()
+        recent = [t for t in self.server.auth_failures.get(ip, []) if now - t < AUTH_WINDOW_SECONDS]
+        if len(recent) >= AUTH_MAX_FAILURES:
+            self.server.auth_failures[ip] = recent
+            return False, 429
+        supplied = str(self.headers.get("X-MPC-Token", ""))
+        if not secrets.compare_digest(supplied, self.server.token):
+            recent.append(now)
+            self.server.auth_failures[ip] = recent
+            return False, 401
+        self.server.auth_failures.pop(ip, None)
+        return True, 200
+
+    def _require_auth(self) -> bool:
+        ok, status = self._auth()
+        if ok:
+            return True
+        self._json(status, {"error": "Trop de tentatives" if status == 429 else "Jeton incorrect"})
+        return False
 
     def do_OPTIONS(self):
         self.send_response(204)
-        self._cors()
-        self.end_headers()
+        super().end_headers()
 
     def do_GET(self):
         if urlparse(self.path).path != "/api/vst/plugins":
-            self._json(404, {"error": "Route inconnue"})
+            super().do_GET()
             return
-        if not self._authorized():
-            self._json(401, {"error": "PIN incorrect"})
+        if not self._require_auth():
             return
-        items = [{"id": pid, "name": p.stem, "path": str(p)} for pid, p in sorted(self.server.plugins.items(), key=lambda x: x[1].name.lower())]
+        items = [
+            {"id": pid, "name": p.stem}
+            for pid, p in sorted(self.server.plugins.items(), key=lambda x: x[1].name.lower())
+        ]
         self._json(200, {"version": VERSION, "plugins": items})
 
     def do_POST(self):
         if urlparse(self.path).path != "/api/vst/process":
             self._json(404, {"error": "Route inconnue"})
             return
-        if not self._authorized():
-            self._json(401, {"error": "PIN incorrect"})
+        if not self._require_auth():
             return
+
         q = parse_qs(urlparse(self.path).query)
         pid = str(q.get("plugin", [""])[0])
         path = self.server.plugins.get(pid)
         if not path:
             self._json(400, {"error": "Plugin VST3 inconnu"})
             return
+
         try:
             length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
@@ -151,8 +192,13 @@ class Handler(BaseHTTPRequestHandler):
         if length <= 0 or length > MAX_UPLOAD:
             self._json(413, {"error": "WAV vide ou trop volumineux"})
             return
+
+        if not self.server.processing_lock.acquire(blocking=False):
+            self._json(429, {"error": "Un traitement VST3 est déjà en cours"})
+            return
         try:
             from pedalboard import load_plugin
+
             raw = self.rfile.read(length)
             audio, rate = read_wav(raw)
             plugin = load_plugin(str(path))
@@ -161,11 +207,14 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as exc:
             self._json(422, {"error": f"Traitement VST3 impossible: {exc}"})
             return
+        finally:
+            self.server.processing_lock.release()
+
         self.send_response(200)
-        self._cors()
         self.send_header("Content-Type", "audio/wav")
+        self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(result)))
-        self.end_headers()
+        super().end_headers()
         self.wfile.write(result)
 
     def log_message(self, fmt, *args):
@@ -174,6 +223,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def local_ip() -> str:
     import socket
+
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
@@ -188,28 +238,45 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="MPC Studio VST3 local bridge")
     parser.add_argument("--bind", default=os.getenv("MPC_VST_BIND", "0.0.0.0"))
     parser.add_argument("--port", type=int, default=int(os.getenv("MPC_VST_PORT", "8766")))
-    parser.add_argument("--pin", default=os.getenv("MPC_VST_PIN", ""))
+    parser.add_argument("--token", default=os.getenv("MPC_VST_TOKEN", ""))
+    parser.add_argument("--pin", dest="legacy_pin", default=os.getenv("MPC_VST_PIN", ""))
     parser.add_argument("--vst-dir", action="append", default=[])
+    parser.add_argument("--root", default=str(Path(__file__).resolve().parent))
     args = parser.parse_args()
+
+    root = Path(args.root).resolve()
+    if not (root / "index.html").exists():
+        print(f"Erreur: index.html introuvable dans {root}")
+        return 2
+
     dirs = [Path(x).expanduser().resolve() for x in args.vst_dir] or default_vst_dirs()
     plugins = scan_plugins(dirs)
-    pin = str(args.pin).strip() or str(secrets.randbelow(900000) + 100000)
-    server = Server((args.bind, args.port), Handler)
+    token = str(args.token or args.legacy_pin).strip() or secrets.token_urlsafe(24)
+
+    handler = partial(Handler, directory=str(root))
+    server = Server((args.bind, args.port), handler)
     server.plugins = plugins
-    server.pin = pin
-    print("\n=== MPC Studio · VST3 PC Bridge ===")
+    server.token = token
+    server.auth_failures = {}
+    server.processing_lock = threading.Lock()
+
+    ip = local_ip()
+    print("\n=== MPC Studio · VST3 PC Bridge v1.1 ===")
     print("Aucun installeur n'est exécuté par ce pont.")
-    print("Dossiers scannés:")
-    for d in dirs: print(" -", d)
+    print("Dossiers VST3 scannés:")
+    for d in dirs:
+        print(" -", d)
     print(f"Plugins VST3 détectés: {len(plugins)}")
-    print(f"PIN MPC: {pin}")
-    print(f"PC local: http://127.0.0.1:{args.port}")
-    print(f"Depuis Android sur le même réseau: http://{local_ip()}:{args.port}")
+    print(f"Jeton MPC: {token}")
+    print(f"Ouvre MPC Studio sur ce PC: http://127.0.0.1:{args.port}/")
+    print(f"Ouvre MPC Studio sur Android/LAN: http://{ip}:{args.port}/")
+    print("Le navigateur et l'API VST utilisent ainsi la même origine.")
     print("Ctrl+C pour arrêter.\n")
+
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        pass
+        print("\nArrêt du VST Bridge.")
     finally:
         server.server_close()
     return 0
