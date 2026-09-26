@@ -296,3 +296,14 @@ body[data-mode="creation"] .workspace{grid-template-columns:minmax(500px,1fr) mi
     font-size:10px
   }
 }
+
+
+/* Audit 5 mobile dialog hit targets */
+.soniloCard .dialogHead,
+.vstCard .dialogHead{display:grid;grid-template-columns:minmax(0,1fr) 44px;align-items:start;gap:10px}
+.soniloCard .dialogHead>div,
+.vstCard .dialogHead>div{min-width:0}
+.soniloCard .dialogHead h2,
+.vstCard .dialogHead h2{min-width:0;overflow-wrap:anywhere;line-height:1.2}
+.soniloCard .dialogHead>button,
+.vstCard .dialogHead>button{width:44px;min-width:44px;height:44px;min-height:44px;padding:0;position:relative;z-index:2}
