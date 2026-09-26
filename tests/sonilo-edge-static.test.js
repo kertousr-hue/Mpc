@@ -79,3 +79,15 @@ test('authenticated clients cannot erase quota rows or forge task ownership',()=
   assert.match(gen,/SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(gen,/\/auth\/v1\/user/);
 });
+
+
+test('Sonilo generate does not require service role for ownership or rollback',()=>{
+  const schema=read('supabase-schema.sql');
+  const gen=read('supabase/functions/sonilo-generate/index.ts');
+  assert.match(schema,/record_sonilo_task/);
+  assert.match(schema,/release_sonilo_generation/);
+  assert.match(gen,/rpc\/record_sonilo_task/);
+  assert.match(gen,/rpc\/release_sonilo_generation/);
+  assert.doesNotMatch(gen,/SUPABASE_SERVICE_ROLE_KEY/);
+  assert.doesNotMatch(gen,/auth\/v1\/user/);
+});
