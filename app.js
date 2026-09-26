@@ -53,9 +53,12 @@ function trackSource(src){activeSources.add(src);const old=src.onended;src.onend
 function stopAllSources(){for(const src of [...activeSources]){try{src.stop()}catch(e){}activeSources.delete(src)}stopRepeat()}
 function isPadAudible(id){const p=pads[id];return !!p&&!p.muted&&(soloPads.size===0||soloPads.has(id))}
 
-function createNoise(ac,seconds){
- const b=ac.createBuffer(1,Math.max(1,Math.floor(ac.sampleRate*seconds)),ac.sampleRate),d=b.getChannelData(0);
- for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; return b;
+const noiseBuffers=new WeakMap();
+function getNoiseBuffer(ac){
+ let b=noiseBuffers.get(ac);if(b)return b;
+ const length=Math.max(1,Math.floor(ac.sampleRate*2));b=ac.createBuffer(1,length,ac.sampleRate);const d=b.getChannelData(0);let x=0x6d2b79f5;
+ for(let i=0;i<d.length;i++){x^=x<<13;x^=x>>>17;x^=x<<5;d[i]=((x>>>0)/4294967295)*2-1}
+ noiseBuffers.set(ac,b);return b;
 }
 function gainEnv(ac,dest,time,vol,decay){
  const g=ac.createGain(); g.gain.setValueAtTime(Math.max(.0001,vol),time); g.gain.exponentialRampToValueAtTime(.0001,time+decay); g.connect(dest); return g;
@@ -67,7 +70,7 @@ function oscHit(ac,dest,time,type,freq,endFreq,vol,decay){
 }
 function noiseHit(ac,dest,time,vol,decay,filterType='highpass',freq=4000,q=.7){
  const s=trackSource(ac.createBufferSource()),f=ac.createBiquadFilter(),g=gainEnv(ac,dest,time,vol,decay);
- s.buffer=createNoise(ac,Math.max(decay,.03));f.type=filterType;f.frequency.value=freq;f.Q.value=q;s.connect(f);f.connect(g);s.start(time);s.stop(time+decay+.03);
+ s.buffer=getNoiseBuffer(ac);f.type=filterType;f.frequency.value=freq;f.Q.value=q;s.connect(f);f.connect(g);s.start(time);s.stop(time+decay+.03);
 }
 function raiToneHit(ac,dest,time,freq,types,vol,duration,cutoff=3200,attack=.006,detuneSpread=0){
  const filter=ac.createBiquadFilter(),g=ac.createGain();filter.type='lowpass';filter.frequency.value=cutoff;filter.Q.value=.7;filter.connect(g);g.connect(dest);
