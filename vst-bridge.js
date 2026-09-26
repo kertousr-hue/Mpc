@@ -9,7 +9,8 @@
   function bridgeRequestPolicy(pageUrl,targetUrl){var page,target;try{page=new URL(pageUrl);target=new URL(targetUrl)}catch(e){return {allowed:false,reason:'invalid_url'}}if(!['http:','https:'].includes(target.protocol)||!isPrivateHost(target.hostname))return {allowed:false,reason:'target_not_local'};if(page.protocol==='https:'&&target.protocol==='http:')return {allowed:false,reason:'mixed_content'};return {allowed:true,reason:'ok'}}
   function safePluginId(id){id=String(id||'');return /^vst_[A-Za-z0-9]{6,64}$/.test(id)?id:null}
   function canUseBrowser(){return !!(root&&root.document&&root.window===root)}
-  function defaultBridgeUrl(){if(!canUseBrowser())return 'http://127.0.0.1:8766';try{if(root.location.protocol==='http:'&&isPrivateHost(root.location.hostname))return root.location.origin}catch(e){}return 'http://127.0.0.1:8766'}
+  function defaultBridgeUrlFor(pageUrl){try{var u=new URL(String(pageUrl||''));if(['http:','https:'].includes(u.protocol)&&isPrivateHost(u.hostname))return u.origin}catch(e){}return 'http://127.0.0.1:8766'}
+  function defaultBridgeUrl(){return canUseBrowser()?defaultBridgeUrlFor(root.location.href):'http://127.0.0.1:8766'}
   var state={url:defaultBridgeUrl(),token:'',plugins:[],selected:'',busy:false};
   function load(){try{var x=JSON.parse(localStorage.getItem('mpc-vst-bridge')||'{}');if(x.url)state.url=normalizeBridgeUrl(x.url)}catch(e){}try{state.token=sessionStorage.getItem('mpc-vst-token')||''}catch(e){}}
   function save(){try{localStorage.setItem('mpc-vst-bridge',JSON.stringify({url:state.url}))}catch(e){}try{if(state.token)sessionStorage.setItem('mpc-vst-token',state.token);else sessionStorage.removeItem('mpc-vst-token')}catch(e){}}
@@ -23,5 +24,5 @@
   function inject(){var g=document.querySelector('.creationGrid');if(g&&!document.getElementById('vstOpenBtn')){var b=document.createElement('button');b.id='vstOpenBtn';b.type='button';b.textContent='🎛 VST3 PC';b.onclick=open;g.appendChild(b)}return !!g}
   function init(){load();var n=0,t=setInterval(function(){n++;if(inject()||n>100)clearInterval(t)},50)}
   if(canUseBrowser()){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init()}
-  return {isPrivateHost:isPrivateHost,normalizeBridgeUrl:normalizeBridgeUrl,bridgeRequestPolicy:bridgeRequestPolicy,safePluginId:safePluginId,open:open,refresh:refresh,processSelected:processSelected};
+  return {isPrivateHost:isPrivateHost,normalizeBridgeUrl:normalizeBridgeUrl,bridgeRequestPolicy:bridgeRequestPolicy,defaultBridgeUrlFor:defaultBridgeUrlFor,safePluginId:safePluginId,open:open,refresh:refresh,processSelected:processSelected};
 });
