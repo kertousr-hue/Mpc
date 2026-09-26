@@ -46,6 +46,17 @@ test('MPC Studio raï workflow works in desktop and mobile browsers',async({page
       return {innerWidth:window.innerWidth,views:rect(views),toolbar:rect(toolbar),sequencer:rect(sequencer),padPanel:rect(padPanel),viewsDisplay:cs&&cs.display,viewsColumns:cs&&cs.gridTemplateColumns,toolbarDisplay:ts&&ts.display,buttons};
     });
     console.log('MOBILE_GROOVE_GEOMETRY '+JSON.stringify(geometry));
+    const hiddenState=async label=>{
+      const value=await page.evaluate(()=>{
+        const ids=['grooveGrid','grooveStepEditor','grooveMixerPanel','grooveFxPanel','grooveAutomationPanel','grooveMidiPanel'];
+        return ids.map(id=>{const el=document.getElementById(id),r=el&&el.getBoundingClientRect();return {id,hidden:!!(el&&el.hidden),display:el&&getComputedStyle(el).display,rect:r&&{x:r.x,y:r.y,w:r.width,h:r.height}}});
+      });
+      console.log('MOBILE_GROOVE_PANELS_'+label+' '+JSON.stringify(value));
+    };
+    await hiddenState('BEFORE');
+    await page.locator('.grooveViews [data-view="step"]').evaluate(el=>el.click());
+    await hiddenState('AFTER_STEP');
+    await page.locator('.grooveViews [data-view="grid"]').evaluate(el=>el.click());
   }
 
   for(const view of ['grid','step','mixer','fx','automation','midi']){
