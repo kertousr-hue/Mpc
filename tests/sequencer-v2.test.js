@@ -45,3 +45,15 @@ test('formatBarLabel uses human friendly bar numbering',()=>{
   assert.equal(v2.formatBarLabel(0,4),'Mesure 1/4');
   assert.equal(v2.formatBarLabel(3,4),'Mesure 4/4');
 });
+
+
+test('quantizePosition supports straight and triplet grids',()=>{
+  assert.deepEqual(v2.quantizePosition(3.2,'1/16',16),{stepIndex:3,micro:0});
+  assert.deepEqual(v2.quantizePosition(3.2,'1/8',16),{stepIndex:4,micro:0});
+  const thirtySecond=v2.quantizePosition(3.51,'1/32',16);
+  assert.equal(thirtySecond.stepIndex,4);
+  assert.equal(thirtySecond.micro,-.49);
+  const triplet=v2.quantizePosition(2.7,'1/8T',16);
+  assert.ok(triplet.stepIndex>=0&&triplet.stepIndex<16);
+  assert.ok(triplet.micro>=-.49&&triplet.micro<=.49);
+});
