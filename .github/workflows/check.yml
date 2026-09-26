@@ -19,6 +19,7 @@ jobs:
         run: |
           node --check app.js
           node --check sequencer-core.js
+          node --check sequencer-v2.js
           node --check api-services.js
           node --check api-dj.js
           node --check pwa.js
