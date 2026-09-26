@@ -62,13 +62,15 @@ class VstBridgeCoreTests(unittest.TestCase):
 
     def test_wrap_server_tls_uses_server_side_context(self):
         server = mock.Mock()
-        server.socket = object()
+        original_socket = object()
+        server.socket = original_socket
         context = mock.Mock()
         with mock.patch("vst_bridge_core.ssl.SSLContext", return_value=context) as ctor:
             core.wrap_server_tls(server, Path("/tmp/cert"), Path("/tmp/key"))
         ctor.assert_called_once_with(core.ssl.PROTOCOL_TLS_SERVER)
         context.load_cert_chain.assert_called_once_with(certfile="/tmp/cert", keyfile="/tmp/key")
-        context.wrap_socket.assert_called_once_with(server.socket, server_side=True)
+        context.wrap_socket.assert_called_once_with(original_socket, server_side=True)
+        self.assertIs(server.socket, context.wrap_socket.return_value)
 
 
 if __name__ == "__main__":
