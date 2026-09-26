@@ -18,6 +18,7 @@ jobs:
       - name: Vérifier JavaScript
         run: |
           node --check app.js
+          node --check sequencer-core.js
           node --check api-services.js
           node --check api-dj.js
           node --check pwa.js
@@ -31,6 +32,8 @@ jobs:
           node --check virtualdj.js
           node --check virtualdj-files.js
           node --check virtualdj-catalogs.js
+      - name: Exécuter les tests JavaScript
+        run: npm test
       - name: Vérifier Python
         run: |
           python -m py_compile virtualdj_bridge.py
