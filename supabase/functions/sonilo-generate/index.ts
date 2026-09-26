@@ -38,6 +38,40 @@ function upstreamError(status: number, retryAfter: string | null) {
   return { code, status, retryAfter: status === 429 ? Number(retryAfter) || null : null }
 }
 
+function projectPublishableKey() {
+  const legacy = Deno.env.get('SUPABASE_ANON_KEY')
+  if (legacy) return legacy
+  try {
+    const keys = JSON.parse(Deno.env.get('SUPABASE_PUBLISHABLE_KEYS') || '{}')
+    return String(keys.default || '')
+  } catch (_) {
+    return ''
+  }
+}
+
+async function reserveQuota(req: Request, kind: 'music' | 'sfx') {
+  const url = Deno.env.get('SUPABASE_URL') || ''
+  const apikey = projectPublishableKey()
+  const authorization = req.headers.get('Authorization') || ''
+  if (!url || !apikey || !authorization) return { allowed: false, code: 'rate_guard_unavailable' }
+
+  try {
+    const response = await fetch(`${url}/rest/v1/rpc/reserve_sonilo_generation`, {
+      method: 'POST',
+      headers: {
+        Authorization: authorization,
+        apikey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ p_kind: kind }),
+    })
+    if (!response.ok) return { allowed: false, code: 'rate_guard_unavailable' }
+    return await response.json()
+  } catch (_) {
+    return { allowed: false, code: 'rate_guard_unavailable' }
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return json({ error: { code: 'method_not_allowed' } }, 405)
@@ -52,6 +86,13 @@ Deno.serve(async (req: Request) => {
 
   const apiKey = Deno.env.get('SONILO_API_KEY') || Deno.env.get('Sonilo-api-key')
   if (!apiKey) return json({ error: { code: 'sonilo_not_configured' } }, 503)
+
+  const quota = await reserveQuota(req, input.type)
+  if (!quota?.allowed) {
+    const code = String(quota?.code || 'rate_guard_unavailable')
+    const retryAfter = Number(quota?.retryAfter) || null
+    return json({ error: { code, retryAfter } }, code === 'rate_limited' ? 429 : 503, retryAfter ? { 'Retry-After': String(retryAfter) } : {})
+  }
 
   const form = new FormData()
   form.set('prompt', input.prompt)
