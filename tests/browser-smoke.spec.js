@@ -71,6 +71,18 @@ test('MPC Studio raï workflow works in desktop and mobile browsers',async({page
   await expect(page.locator('#soniloOpenBtn')).toBeVisible();
   await page.locator('#soniloOpenBtn').click();
   await expect(page.locator('#soniloDialog')).toHaveAttribute('open','');
+  if(testInfo.project.name==='chromium-mobile'){
+    const modalGeometry=await page.evaluate(()=>{
+      const describe=id=>{
+        const el=document.getElementById(id),r=el&&el.getBoundingClientRect();
+        if(!r)return null;
+        const cx=r.left+r.width/2,cy=r.top+r.height/2,hit=document.elementFromPoint(cx,cy),cs=getComputedStyle(el);
+        return {rect:{x:r.x,y:r.y,w:r.width,h:r.height},position:cs.position,zIndex:cs.zIndex,pointerEvents:cs.pointerEvents,hit:hit&&{tag:hit.tagName,id:hit.id,cls:hit.className}};
+      };
+      return {close:describe('soniloClose'),dialog:describe('soniloDialog'),card:(()=>{const el=document.querySelector('#soniloDialog .soniloCard'),r=el.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}})(),head:(()=>{const el=document.querySelector('#soniloDialog .dialogHead'),r=el.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}})()};
+    });
+    console.log('MOBILE_SONILO_CLOSE_GEOMETRY '+JSON.stringify(modalGeometry));
+  }
   await page.locator('#soniloClose').click();
 
   await expect(page.locator('#vstOpenBtn')).toBeVisible();
