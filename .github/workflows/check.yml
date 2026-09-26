@@ -50,6 +50,7 @@ jobs:
         run: npm test
       - name: Vérifier Python
         run: |
+          python -m unittest discover -s tests -p 'test_vst_bridge_core.py' -v
           python -m py_compile virtualdj_bridge.py
           python -m py_compile virtualdj_bridge_v2.py
           python -m py_compile vst_bridge.py
