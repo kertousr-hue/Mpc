@@ -1,9 +1,10 @@
-const CACHE = 'mpc-studio-v28-rai-factory';
+const CACHE = 'mpc-studio-v29-rai-defaults';
 const SHELL = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
+  "./rai-factory.js",
   "./sequencer-core.js",
   "./sequencer-v2.js",
   "./mixer-core.js",
