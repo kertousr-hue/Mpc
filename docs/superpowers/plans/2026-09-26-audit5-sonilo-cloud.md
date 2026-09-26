@@ -194,7 +194,33 @@
 - [ ] **Step 8: Commit**
   - \`git add cloud-project-core.js tests/cloud-project-core.test.js index.html sw.js app.js && git commit -m "fix: update existing cloud projects"\`
 
-### Task 5: Audit Supabase final du bloc
+### Task 5: Adapter la copie Sonilo à l’orientation raï
+
+**Files:**
+- Modify: \`sonilo.js\`
+- Modify: \`tests/sonilo-ui-static.test.js\` (create if absent)
+
+**Interfaces:** none.
+
+- [ ] **Step 1: Write the failing static test**
+  - Assert the Sonilo prompt placeholder contains a raï-oriented example.
+  - Assert it no longer contains the techno example.
+
+- [ ] **Step 2: Run the test**
+  - Run: \`node --test tests/sonilo-ui-static.test.js\`
+  - Expected: FAIL.
+
+- [ ] **Step 3: Update UI copy**
+  - Replace the placeholder with a concrete raï example such as \`darbuka raï sèche, guellal, attaque nette…\`.
+  - Do not change API parameters or trigger generation.
+
+- [ ] **Step 4: Run the test**
+  - Expected: PASS.
+
+- [ ] **Step 5: Commit**
+  - \`git add sonilo.js tests/sonilo-ui-static.test.js && git commit -m "ui: align Sonilo prompt with rai workflow"\`
+
+### Task 6: Audit Supabase final du bloc
 
 **Files:** none unless a lint requires a corrective migration.
 
