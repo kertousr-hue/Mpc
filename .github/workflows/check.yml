@@ -20,6 +20,11 @@ jobs:
           node --check app.js
           node --check sequencer-core.js
           node --check sequencer-v2.js
+          node --check automation.js
+          node --check automation-core.js
+          node --check audio-engine-v2.js
+          node --check fx-rack.js
+          node --check mixer-core.js
           node --check api-services.js
           node --check api-dj.js
           node --check pwa.js
@@ -42,6 +47,13 @@ jobs:
       - name: Vérifier les fichiers essentiels
         run: |
           test -f index.html
+          test -f automation.js
+          test -f automation-core.js
+          test -f audio-engine-v2.js
+          test -f fx-rack.js
+          test -f mixer-core.js
+          test -f sequencer-v2.js
+          test -f sequencer-core.js
           test -f styles.css
           test -f api-services.js
           test -f api-dj.js
