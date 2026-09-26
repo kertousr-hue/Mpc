@@ -230,3 +230,37 @@ body[data-mode="creation"] .workspace{grid-template-columns:minmax(500px,1fr) mi
  .midiLearnGrid{grid-template-columns:1fr}.midiActions{display:grid;grid-template-columns:1fr 1fr}.midiActions button:first-child{grid-column:1/-1}
  .soniloRow{grid-template-columns:1fr}
 }
+
+
+/* Audit accessibility & touch pass */
+.grooveToolbar label,
+.grooveStepEditor label,
+.mixStrip label,
+.grooveFxPanel label,
+.grooveAutomationPanel label{font-size:11px}
+.grooveToolbar>span,
+.grooveTrackName b,
+.grooveStepEditor output,
+.mixStrip header b,
+.mixStrip summary,
+.midiLearning{font-size:11px}
+.grooveTrackName span,
+.mixStrip header small,
+.fxRackHead small,
+.automationHead small,
+.midiHead small,
+.midiLearnGrid article small,
+.soniloHint{font-size:10px}
+
+@media(max-width:760px){
+  .grooveToolbar button,
+  .grooveToolbar select,
+  .grooveViews button,
+  .perfLive button,
+  .perfLive select,
+  .midiActions button,
+  .midiLearnGrid button,
+  .fxSwitches button{min-height:44px}
+  .grooveTrackName{min-height:44px}
+  .grooveViews{max-width:100%;overflow-x:auto;padding-bottom:2px}
+}
