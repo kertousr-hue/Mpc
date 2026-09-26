@@ -109,7 +109,19 @@ create table if not exists public.sonilo_generation_log (
 );
 
 alter table public.sonilo_generation_log enable row level security;
-revoke all on public.sonilo_generation_log from anon, authenticated;
+grant select, insert on public.sonilo_generation_log to authenticated;
+
+drop policy if exists "sonilo_generation_select_own" on public.sonilo_generation_log;
+create policy "sonilo_generation_select_own"
+on public.sonilo_generation_log for select
+to authenticated
+using ((select auth.uid()) = user_id);
+
+drop policy if exists "sonilo_generation_insert_own" on public.sonilo_generation_log;
+create policy "sonilo_generation_insert_own"
+on public.sonilo_generation_log for insert
+to authenticated
+with check ((select auth.uid()) = user_id);
 
 create index if not exists sonilo_generation_log_user_created_idx
 on public.sonilo_generation_log (user_id, created_at desc);
@@ -117,7 +129,7 @@ on public.sonilo_generation_log (user_id, created_at desc);
 create or replace function public.reserve_sonilo_generation(p_kind text)
 returns jsonb
 language plpgsql
-security definer
+security invoker
 set search_path = public
 as $$
 declare
