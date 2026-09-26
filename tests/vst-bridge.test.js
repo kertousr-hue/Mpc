@@ -13,3 +13,13 @@ test('safePluginId accepts bridge generated ids only',()=>{
   assert.equal(v.safePluginId('vst_abc123EF'),'vst_abc123EF');
   assert.equal(v.safePluginId('../../x'),null);
 });
+
+
+test('bridgeRequestPolicy blocks HTTPS to local HTTP mixed content',()=>{
+  assert.deepEqual(v.bridgeRequestPolicy('https://mpc.example/','http://192.168.1.10:8766'),{allowed:false,reason:'mixed_content'});
+  assert.deepEqual(v.bridgeRequestPolicy('http://192.168.1.10:8766/','http://192.168.1.10:8766'),{allowed:true,reason:'ok'});
+});
+
+test('normalizeBridgeUrl rejects public hosts',()=>{
+  assert.throws(()=>v.normalizeBridgeUrl('http://example.com:8766'),/locale|LAN/i);
+});
