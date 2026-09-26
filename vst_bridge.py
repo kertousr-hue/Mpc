@@ -24,8 +24,10 @@ from urllib.parse import parse_qs, urlparse
 
 import numpy as np
 
+from vst_bridge_core import origin_headers, parse_allowed_origins, resolve_tls, wrap_server_tls
+
 MAX_UPLOAD = 64 * 1024 * 1024
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 AUTH_WINDOW_SECONDS = 60
 AUTH_MAX_FAILURES = 8
 
@@ -111,6 +113,7 @@ class Server(ThreadingHTTPServer):
     token: str
     auth_failures: dict[str, list[float]]
     processing_lock: threading.Lock
+    allowed_origins: set[str]
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -119,6 +122,9 @@ class Handler(SimpleHTTPRequestHandler):
     def _security_headers(self):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "no-referrer")
+        requested_private = str(self.headers.get("Access-Control-Request-Private-Network", "")).lower() == "true"
+        for key, value in origin_headers(self.headers.get("Origin"), self.server.allowed_origins, requested_private).items():
+            self.send_header(key, value)
 
     def end_headers(self):
         self._security_headers()
@@ -157,6 +163,11 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_OPTIONS(self):
         self.send_response(204)
+        origin = self.headers.get("Origin")
+        cors = origin_headers(origin, self.server.allowed_origins, str(self.headers.get("Access-Control-Request-Private-Network", "")).lower() == "true")
+        if cors:
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, X-MPC-Token")
         super().end_headers()
 
     def do_GET(self):
@@ -242,6 +253,9 @@ def main() -> int:
     parser.add_argument("--pin", dest="legacy_pin", default=os.getenv("MPC_VST_PIN", ""))
     parser.add_argument("--vst-dir", action="append", default=[])
     parser.add_argument("--root", default=str(Path(__file__).resolve().parent))
+    parser.add_argument("--certfile", default=None)
+    parser.add_argument("--keyfile", default=None)
+    parser.add_argument("--allow-origin", action="append", default=[])
     args = parser.parse_args()
 
     root = Path(args.root).resolve()
@@ -252,6 +266,12 @@ def main() -> int:
     dirs = [Path(x).expanduser().resolve() for x in args.vst_dir] or default_vst_dirs()
     plugins = scan_plugins(dirs)
     token = str(args.token or args.legacy_pin).strip() or secrets.token_urlsafe(24)
+    try:
+        certfile, keyfile = resolve_tls(args.certfile, args.keyfile)
+        allowed_origins = parse_allowed_origins(args.allow_origin, os.getenv("MPC_VST_ALLOWED_ORIGINS", ""))
+    except ValueError as exc:
+        print(f"Erreur de configuration VST Bridge: {exc}")
+        return 2
 
     handler = partial(Handler, directory=str(root))
     server = Server((args.bind, args.port), handler)
@@ -259,18 +279,30 @@ def main() -> int:
     server.token = token
     server.auth_failures = {}
     server.processing_lock = threading.Lock()
+    server.allowed_origins = allowed_origins
+    if certfile and keyfile:
+        wrap_server_tls(server, certfile, keyfile)
 
     ip = local_ip()
-    print("\n=== MPC Studio · VST3 PC Bridge v1.1 ===")
+    scheme = "https" if certfile else "http"
+    print("\n=== MPC Studio · VST3 PC Bridge v1.2 ===")
     print("Aucun installeur n'est exécuté par ce pont.")
     print("Dossiers VST3 scannés:")
     for d in dirs:
         print(" -", d)
     print(f"Plugins VST3 détectés: {len(plugins)}")
     print(f"Jeton MPC: {token}")
-    print(f"Ouvre MPC Studio sur ce PC: http://127.0.0.1:{args.port}/")
-    print(f"Ouvre MPC Studio sur Android/LAN: http://{ip}:{args.port}/")
-    print("Le navigateur et l'API VST utilisent ainsi la même origine.")
+    print(f"Ouvre MPC Studio sur ce PC: {scheme}://127.0.0.1:{args.port}/")
+    print(f"Ouvre MPC Studio sur Android/LAN: {scheme}://{ip}:{args.port}/")
+    if certfile:
+        print("HTTPS actif: le certificat doit être approuvé sur chaque appareil client.")
+    else:
+        print("HTTP actif: mode de secours; HTTPS est recommandé pour conserver le Secure Context.")
+    if allowed_origins:
+        print("Origines navigateur autorisées:")
+        for origin in sorted(allowed_origins):
+            print(" -", origin)
+    print("Le mode recommandé sert MPC Studio et l'API VST depuis la même origine.")
     print("Ctrl+C pour arrêter.\n")
 
     try:
