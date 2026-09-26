@@ -176,3 +176,18 @@ Une PWA ne peut pas héberger directement des VST3 Windows. `vst_bridge.py` four
 4. choisir un VST3 et traiter le sample du pad sélectionné.
 
 Le pont n'exécute jamais le fichier d'installation MPluginManager. Voir `VST_PC.md`.
+
+
+## Palette Raï 128 sons
+
+La bibliothèque Factory de MPC Studio est désormais orientée raï tout en conservant exactement les 128 index historiques pour que les anciens projets restent compatibles.
+
+Elle comprend notamment :
+- batterie et claps raï ;
+- shakers, Riq et tambourins ;
+- Darbuka, Guellal, Bendir et Tbal ;
+- basses raï ;
+- Gasba, accordéon, trompette, guitare, strings, synth leads et stabs ;
+- Vox et FX raï.
+
+La banque A démarre avec un kit raï complet de 16 pads. Le bouton Beat Auto produit également un groove raï.
