@@ -34,6 +34,20 @@ test('MPC Studio raï workflow works in desktop and mobile browsers',async({page
     await expect.poll(async()=>page.locator('.grooveStep.active').count()).toBeGreaterThan(0);
   }
 
+  if(testInfo.project.name==='chromium-mobile'){
+    const geometry=await page.evaluate(()=>{
+      const rect=el=>{const r=el&&el.getBoundingClientRect();return r?{x:r.x,y:r.y,w:r.width,h:r.height,right:r.right,bottom:r.bottom}:null};
+      const views=document.querySelector('.grooveViews'),toolbar=document.querySelector('.grooveToolbar'),sequencer=document.querySelector('.sequencer'),padPanel=document.querySelector('.padPanel');
+      const buttons=Array.from(document.querySelectorAll('.grooveViews button')).map(el=>{
+        const r=el.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,hit=document.elementFromPoint(cx,cy);
+        return {view:el.dataset.view,text:el.textContent,rect:rect(el),hit:hit&&{tag:hit.tagName,className:hit.className,dataView:hit.dataset&&hit.dataset.view,dataId:hit.dataset&&hit.dataset.id}};
+      });
+      const cs=views?getComputedStyle(views):null,ts=toolbar?getComputedStyle(toolbar):null;
+      return {innerWidth:window.innerWidth,views:rect(views),toolbar:rect(toolbar),sequencer:rect(sequencer),padPanel:rect(padPanel),viewsDisplay:cs&&cs.display,viewsColumns:cs&&cs.gridTemplateColumns,toolbarDisplay:ts&&ts.display,buttons};
+    });
+    console.log('MOBILE_GROOVE_GEOMETRY '+JSON.stringify(geometry));
+  }
+
   for(const view of ['grid','step','mixer','fx','automation','midi']){
     const button=page.locator('.grooveViews [data-view="'+view+'"]');
     await expect(button).toBeVisible();
