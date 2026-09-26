@@ -109,7 +109,8 @@ create table if not exists public.sonilo_generation_log (
 );
 
 alter table public.sonilo_generation_log enable row level security;
-grant select, insert, delete on public.sonilo_generation_log to authenticated;
+grant select, insert on public.sonilo_generation_log to authenticated;
+revoke delete on public.sonilo_generation_log from authenticated;
 
 drop policy if exists "sonilo_generation_select_own" on public.sonilo_generation_log;
 create policy "sonilo_generation_select_own"
@@ -124,10 +125,6 @@ to authenticated
 with check ((select auth.uid()) = user_id);
 
 drop policy if exists "sonilo_generation_delete_own" on public.sonilo_generation_log;
-create policy "sonilo_generation_delete_own"
-on public.sonilo_generation_log for delete
-to authenticated
-using ((select auth.uid()) = user_id);
 
 create index if not exists sonilo_generation_log_user_created_idx
 on public.sonilo_generation_log (user_id, created_at desc);
