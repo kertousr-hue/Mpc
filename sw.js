@@ -5,6 +5,7 @@ const SHELL = [
   "./styles.css",
   "./app.js",
   "./rai-factory.js",
+  "./cloud-project-core.js",
   "./sequencer-core.js",
   "./sequencer-v2.js",
   "./mixer-core.js",
