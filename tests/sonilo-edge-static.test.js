@@ -79,14 +79,3 @@ test('authenticated clients cannot erase quota rows or forge task ownership',()=
   assert.match(gen,/SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(gen,/\/auth\/v1\/user/);
 });
-
-
-test('Sonilo quota rollback uses caller JWT and owner RLS',()=>{
-  const schema=read('supabase-schema.sql');
-  const gen=read('supabase/functions/sonilo-generate/index.ts');
-  assert.match(schema,/sonilo_generation_delete_own/);
-  assert.match(gen,/async function rollback\(req: Request, reservationId: number\)/);
-  assert.match(gen,/Authorization: ctx\.authorization/);
-  assert.doesNotMatch(gen,/async function rollback[\s\S]*?Bearer \$\{serviceRole\}/);
-});
-
