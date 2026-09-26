@@ -70,14 +70,27 @@
     return out;
   }
 
-  var DEFAULT_RAI_BANK=[0,16,40,64,32,24,72,80,96,108,110,56,112,114,116,120];
+  var RAI_BANKS={
+    A:[0,16,40,64,72,80,56,32,96,108,110,112,114,116,120,124],
+    B:[1,17,33,41,57,65,69,73,77,81,85,88,92,24,46,58],
+    C:[96,97,98,99,100,101,102,103,104,105,106,107,108,110,112,116],
+    D:[109,111,113,115,117,118,119,120,121,122,123,124,125,126,127,107]
+  };
+
+  function bankIndices(bank){
+    var key=String(bank||'A').toUpperCase();
+    var values=RAI_BANKS[key]||RAI_BANKS.A;
+    return values.slice();
+  }
+
+  var DEFAULT_RAI_BANK=bankIndices('A');
 
   var RAI_KITS=[
-    {name:'KIT RAÏ DRUMS',offset:0,description:'Kick · Snare · Rim · Clap'},
-    {name:'KIT RAÏ SHAKERS',offset:32,description:'Clap · Shaker · Riq · Open'},
-    {name:'KIT RAÏ PERCUS',offset:64,description:'Darbuka · Guellal · Bendir · Tbal'},
-    {name:'KIT RAÏ BASS',offset:96,description:'Bass raï · Gasba · Accordéon'},
-    {name:'KIT RAÏ LEADS & VOX',offset:112,description:'Trumpette · Guitare · Synth · Vox'}
+    {name:'KIT RAÏ LIVE',indices:bankIndices('A'),description:'Drums · Percus · Bass · Mélodies · Vox'},
+    {name:'KIT RAÏ DRUMS',indices:[0,1,16,17,24,25,32,33,40,41,46,47,56,57,88,92],description:'Kick · Snare · Rim · Clap · Shaker · Riq'},
+    {name:'KIT RAÏ PERCUS',indices:[64,65,68,69,72,73,76,77,80,81,84,85,56,57,92,93],description:'Darbuka · Guellal · Bendir · Tbal · Riq · Tambourin'},
+    {name:'KIT RAÏ BASS & MÉLODIES',indices:bankIndices('C'),description:'Bass raï · Gasba · Accordéon · Trumpette · Synth'},
+    {name:'KIT RAÏ LEADS & VOX',indices:bankIndices('D'),description:'Gasba · Accordéon · Trumpette · Guitare · Synth · Vox · FX'}
   ];
 
   function createRaiBeat(){
@@ -96,8 +109,10 @@
   return {
     GROUPS:GROUPS,
     FACTORY_SPEC:FACTORY_SPEC,
+    RAI_BANKS:RAI_BANKS,
     DEFAULT_RAI_BANK:DEFAULT_RAI_BANK,
     RAI_KITS:RAI_KITS,
+    bankIndices:bankIndices,
     buildFactory:buildFactory,
     createRaiBeat:createRaiBeat
   };
