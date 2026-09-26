@@ -36,7 +36,30 @@ test('raï auto beat places kick, clap/snare, shaker and darbuka on musical step
   for(const steps of Object.values(beat)) assert.ok(steps.every(s=>Number.isInteger(s)&&s>=0&&s<16));
 });
 
-test('kit offsets remain aligned to 16-slot factory boundaries',()=>{
-  assert.deepEqual(rai.RAI_KITS.map(k=>k.offset),[0,32,64,96,112]);
-  assert.ok(rai.RAI_KITS.every(k=>k.offset>=0&&k.offset<128));
+test('raï factory exposes four explicit playable banks',()=>{
+  assert.deepEqual(Object.keys(rai.RAI_BANKS),['A','B','C','D']);
+  const factory=rai.buildFactory();
+  for(const bank of ['A','B','C','D']){
+    const indices=rai.bankIndices(bank);
+    assert.equal(indices.length,16);
+    assert.ok(indices.every(i=>Number.isInteger(i)&&i>=0&&i<128));
+    assert.equal(indices.length,new Set(indices).size);
+    assert.ok(indices.every(i=>factory[i]));
+  }
+});
+
+test('bank A covers a complete live raï palette',()=>{
+  const factory=rai.buildFactory();
+  const names=rai.bankIndices('A').map(i=>factory[i].name).join(' ');
+  for(const re of [/Kick/i,/Darbuka/i,/Guellal/i,/Bendir/i,/Bass/i,/Gasba/i,/Accord/i,/Trump|Guitar|Synth|Vox/i]){
+    assert.match(names,re);
+  }
+});
+
+test('all raï kits use explicit 16-slot indices',()=>{
+  assert.ok(Array.isArray(rai.RAI_KITS)&&rai.RAI_KITS.length>=4);
+  for(const kit of rai.RAI_KITS){
+    assert.equal(kit.indices.length,16);
+    assert.ok(kit.indices.every(i=>Number.isInteger(i)&&i>=0&&i<128));
+  }
 });
