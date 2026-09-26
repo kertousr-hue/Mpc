@@ -1,15 +1,10 @@
 const $=id=>document.getElementById(id);
 const BANKS=['A','B','C','D'], STEPS=16, PATTERNS=8;
-const FACTORY_SPEC=[
- ['Kicks','Kick',16],['Snares','Snare',16],['Claps','Clap',8],['Hi-Hats','Hi-Hat',16],
- ['Open Hats','Open Hat',8],['Percussions','Perc',16],['Toms','Tom',8],['Cymbals','Cymbal',8],
- ['Bass','Bass',12],['Synths','Synth',12],['FX Vox','FX Vox',8]
-];
-const FACTORY=[]; let fi=0;
-for(const [category,label,count] of FACTORY_SPEC) for(let i=1;i<=count;i++) FACTORY.push({
- id:'factory-'+(++fi),name:`${label} ${String(i).padStart(2,'0')}`,category,variant:i
-});
-const DEFAULT_NAMES=['Kick 01','Snare 01','Hi-Hat 01','Perc 01','Clap 01','Rim','Tom 01','Shaker','Bass 01','Synth 01','FX Vox 01','Cymbal 01','Chord','Lead','Texture','Stab'];
+const RAI_FACTORY=window.MPCRaiFactory;
+if(!RAI_FACTORY)throw new Error('MPCRaiFactory requis');
+const FACTORY_SPEC=RAI_FACTORY.FACTORY_SPEC;
+const FACTORY=RAI_FACTORY.buildFactory();
+const DEFAULT_NAMES=RAI_FACTORY.DEFAULT_RAI_BANK.map(i=>FACTORY[i].name);
 const ORIENTAL_SOURCES=[
  {instrument:'Darbuka',count:8,url:'https://upload.wikimedia.org/wikipedia/commons/e/ed/Darbuka.ogg',source:'https://commons.wikimedia.org/wiki/File:Darbuka.ogg',creator:'Cassa342',license:'CC BY-SA 4.0'},
  {instrument:'Riq',count:4,url:'https://upload.wikimedia.org/wikipedia/commons/d/db/Riq_demo.ogg',source:'https://commons.wikimedia.org/wiki/File:Riq_demo.ogg',creator:'Derbake',license:'CC BY-SA 4.0'},
@@ -30,8 +25,7 @@ for(const b of BANKS) for(let i=0;i<16;i++){
  const id=b+String(i+1).padStart(2,'0');
  let sample=null;
  if(b==='A'){
-   const names=['Kick 01','Snare 01','Hi-Hat 01','Perc 01','Clap 01','Snares 08','Tom 01','Perc 05','Bass 01','Synth 01','FX Vox 01','Cymbal 01','Synth 04','Synth 08','FX Vox 04','FX Vox 08'];
-   sample={kind:'factory',factoryIndex:factoryIndexByName(names[i])};
+   sample={kind:'factory',factoryIndex:RAI_FACTORY.DEFAULT_RAI_BANK[i]};
  }
  pads[id]={id,name:DEFAULT_NAMES[i],gain:1,pitch:0,start:0,end:1,muted:false,loop:false,sample,userBlob:null,buffer:null,cloudPath:null};
 }
@@ -72,19 +66,62 @@ function noiseHit(ac,dest,time,vol,decay,filterType='highpass',freq=4000,q=.7){
  const s=trackSource(ac.createBufferSource()),f=ac.createBiquadFilter(),g=gainEnv(ac,dest,time,vol,decay);
  s.buffer=createNoise(ac,Math.max(decay,.03));f.type=filterType;f.frequency.value=freq;f.Q.value=q;s.connect(f);f.connect(g);s.start(time);s.stop(time+decay+.03);
 }
+function raiToneHit(ac,dest,time,freq,types,vol,duration,cutoff=3200,attack=.006,detuneSpread=0){
+ const filter=ac.createBiquadFilter(),g=ac.createGain();filter.type='lowpass';filter.frequency.value=cutoff;filter.Q.value=.7;filter.connect(g);g.connect(dest);
+ g.gain.setValueAtTime(.0001,time);g.gain.linearRampToValueAtTime(Math.max(.0001,vol),time+attack);g.gain.exponentialRampToValueAtTime(.0001,time+duration);
+ types.forEach((type,i)=>{const o=trackSource(ac.createOscillator()),d=types.length===1?0:(i-(types.length-1)/2)*detuneSpread;o.type=type;o.frequency.setValueAtTime(freq,time);o.detune.value=d;o.connect(filter);o.start(time);o.stop(time+duration+.03)});
+}
+function raiMetalHit(ac,dest,time,vol,decay,brightness=1){
+ noiseHit(ac,dest,time,.18*vol,Math.min(decay,.16),'highpass',4200+brightness*900,.8);
+ [540,760,1040,1460,2050].forEach((f,i)=>oscHit(ac,dest,time,'square',f*(1+brightness*.025),null,.018*vol,decay*(.72+i*.04)));
+}
 function scheduleFactory(sample,ac,dest,time,vol=1,pitch=0){
- const v=sample.variant||1, r=rateFromPitch(pitch), c=sample.category, tweak=1+(v-1)*.012;
- if(c==='Kicks'){oscHit(ac,dest,time,'sine',145*r*tweak,42*r,.95*vol,.24+.008*(v%5));noiseHit(ac,dest,time,.08*vol,.025,'lowpass',1800)}
- else if(c==='Snares'){noiseHit(ac,dest,time,.72*vol,.14+.008*(v%5),'bandpass',1300+v*80,1.1);oscHit(ac,dest,time,'triangle',180*r,120*r,.2*vol,.1)}
- else if(c==='Claps'){[0,.017,.034].forEach((d,j)=>noiseHit(ac,dest,time+d,.32*vol,.07,'bandpass',1200+v*70,1.2))}
- else if(c==='Hi-Hats'){noiseHit(ac,dest,time,.34*vol,.045+.003*(v%4),'highpass',6000+v*100,1)}
- else if(c==='Open Hats'){noiseHit(ac,dest,time,.34*vol,.32+.015*(v%4),'highpass',5200+v*120,.8)}
- else if(c==='Percussions'){oscHit(ac,dest,time,v%2?'triangle':'sine',(260+v*22)*r,(180+v*8)*r,.42*vol,.09+.006*(v%6));noiseHit(ac,dest,time,.09*vol,.04,'bandpass',2600+v*90)}
- else if(c==='Toms'){oscHit(ac,dest,time,'sine',(125+v*20)*r,(75+v*10)*r,.7*vol,.22+.01*(v%4))}
- else if(c==='Cymbals'){noiseHit(ac,dest,time,.3*vol,.55+.03*(v%4),'highpass',3300+v*150,.6);[430,660,970,1450].forEach((f,i)=>oscHit(ac,dest,time,'square',f*r*tweak,null,.025*vol,.4))}
- else if(c==='Bass'){oscHit(ac,dest,time,v%2?'sawtooth':'square',(46+v*2.3)*r,null,.48*vol,.32);oscHit(ac,dest,time,'sine',(46+v*2.3)*r,null,.32*vol,.34)}
- else if(c==='Synths'){[220,277.18,329.63].forEach((f,i)=>oscHit(ac,dest,time,i?'triangle':'sawtooth',f*r*(1+(v%5)*.04),null,.11*vol,.42+.02*(v%3)))}
- else {noiseHit(ac,dest,time,.14*vol,.28,'bandpass',900+v*210,1);oscHit(ac,dest,time,'sine',(300+v*45)*r,null,.18*vol,.28)}
+ const v=sample.variant||1,r=rateFromPitch(pitch),family=sample.family||'',tweak=1+(v-1)*.01;
+ if(family==='rai-kick'){
+   oscHit(ac,dest,time,'sine',(142+v*1.8)*r,42*r,.95*vol,.22+.008*(v%5));noiseHit(ac,dest,time,.06*vol,.022,'lowpass',1500+v*40);
+ }else if(family==='rai-snare-rim'){
+   if(v<=8){noiseHit(ac,dest,time,.64*vol,.12+.008*(v%4),'bandpass',1450+v*95,1.1);oscHit(ac,dest,time,'triangle',(185+v*5)*r,(125+v*3)*r,.2*vol,.09)}
+   else{const n=v-8;oscHit(ac,dest,time,'triangle',(760+n*55)*r,(410+n*25)*r,.38*vol,.055);noiseHit(ac,dest,time,.12*vol,.028,'bandpass',3400+n*130,1.5)}
+ }else if(family==='rai-clap'){
+   [0,.014,.029,.043].forEach((d,j)=>noiseHit(ac,dest,time+d,(.26-j*.025)*vol,.065,'bandpass',1350+v*95,1.25));
+ }else if(family==='rai-shaker'){
+   const open=v>12,decay=open?.16:.045+.003*(v%5);[0,.008].forEach((d,j)=>noiseHit(ac,dest,time+d,.22*vol/(j+1),decay,'highpass',5600+v*125,.75));
+ }else if(family==='rai-riq-open'){
+   if(v<=4){raiMetalHit(ac,dest,time,.58*vol,.16+.02*v,v);noiseHit(ac,dest,time,.16*vol,.08,'bandpass',2600+v*250,1.1)}
+   else noiseHit(ac,dest,time,.34*vol,.28+.025*(v-4),'highpass',5000+(v-4)*180,.8);
+ }else if(family==='rai-darbuka-guellal'){
+   if(v<=4){oscHit(ac,dest,time,'sine',(215+v*9)*r,(92+v*4)*r,.72*vol,.19+.01*v);noiseHit(ac,dest,time,.1*vol,.035,'bandpass',2400+v*130,1.1)}
+   else if(v<=8){const n=v-4;oscHit(ac,dest,time,'triangle',(610+n*36)*r,(260+n*20)*r,.45*vol,.085);noiseHit(ac,dest,time,.13*vol,.03,'highpass',3900+n*170,1)}
+   else if(v<=12){const n=v-8;oscHit(ac,dest,time,'sine',(150+n*7)*r,(68+n*3)*r,.8*vol,.27+.015*n);noiseHit(ac,dest,time,.12*vol,.06,'lowpass',1200+n*80,.8)}
+   else{const n=v-12;oscHit(ac,dest,time,'triangle',(390+n*28)*r,(180+n*12)*r,.48*vol,.11);noiseHit(ac,dest,time,.12*vol,.04,'bandpass',2600+n*160,1.2)}
+ }else if(family==='rai-bendir-tbal'){
+   if(v<=4){oscHit(ac,dest,time,'sine',(118+v*5)*r,(58+v*2)*r,.78*vol,.34+.018*v);noiseHit(ac,dest,time,.16*vol,.12,'bandpass',760+v*55,.9)}
+   else{const n=v-4;oscHit(ac,dest,time,'sine',(94+n*4)*r,(43+n*2)*r,.9*vol,.42+.02*n);noiseHit(ac,dest,time,.1*vol,.08,'lowpass',950+n*60,.8)}
+ }else if(family==='rai-cymbal-tambour'){
+   if(v<=4)raiMetalHit(ac,dest,time,.5*vol,.48+.035*v,v*.8);
+   else{const n=v-4;[0,.018,.038].forEach((d,j)=>raiMetalHit(ac,dest,time+d,.25*vol,.18+.02*n,n+j*.4))}
+ }else if(family==='rai-bass'){
+   const freq=(43+v*2.1)*r,types=v<=4?['sine','triangle']:v<=8?['sawtooth','square']:['sawtooth','triangle'];
+   raiToneHit(ac,dest,time,freq,types,.58*vol,.34+(v%3)*.04,480+v*95,.004,5);
+   if(v>8)oscHit(ac,dest,time,'sine',freq*.5,null,.18*vol,.32);
+ }else if(family==='rai-melodic'){
+   const root=220*r;
+   if(v<=2){raiToneHit(ac,dest,time,root*(1+(v-1)*.065),['square','triangle'],.34*vol,.42,1850,0.012,7);noiseHit(ac,dest,time,.025*vol,.24,'bandpass',1800,1.4)}
+   else if(v<=4){raiToneHit(ac,dest,time,root*(v===3?1:1.122),['sawtooth','square','sawtooth'],.3*vol,.48,2900,.018,9)}
+   else if(v<=6){raiToneHit(ac,dest,time,root*(v===5?1.26:1.335),['sawtooth','triangle'],.34*vol,.38,2400,.008,4)}
+   else if(v<=8){raiToneHit(ac,dest,time,root*(v===7?.75:.84),['triangle','sawtooth'],.3*vol,.26,2200,.003,3);noiseHit(ac,dest,time,.025*vol,.03,'highpass',3500)}
+   else if(v<=10){raiToneHit(ac,dest,time,root*(v===9?1:1.5),['sawtooth','square'],.29*vol,.36,3300,.005,8)}
+   else if(v===11){raiToneHit(ac,dest,time,root*.75,['sawtooth','sawtooth','triangle'],.24*vol,.72,2600,.08,12)}
+   else{[1,1.25,1.5].forEach((m,i)=>raiToneHit(ac,dest,time,root*m,['sawtooth'],.12*vol,.32,3000,.004,0))}
+ }else if(family==='rai-vox-fx'){
+   if(v<=4){const f=(235+v*36)*r;raiToneHit(ac,dest,time,f,['sawtooth','triangle'],.24*vol,.32,1400+v*240,.012,6);noiseHit(ac,dest,time,.04*vol,.12,'bandpass',700+v*320,2)}
+   else if(v===5){oscHit(ac,dest,time,'sawtooth',170*r,940*r,.2*vol,.62);noiseHit(ac,dest,time,.06*vol,.55,'bandpass',2100,1)}
+   else if(v===6){oscHit(ac,dest,time,'sawtooth',920*r,150*r,.2*vol,.58);noiseHit(ac,dest,time,.05*vol,.5,'bandpass',1700,1)}
+   else if(v===7){[1,1.5,2].forEach((m,i)=>oscHit(ac,dest,time,'triangle',190*r*m,95*r*m,.12*vol,.28))}
+   else{noiseHit(ac,dest,time,.13*vol,.52,'bandpass',1050+v*110,1.4);raiToneHit(ac,dest,time,180*r,['sine','triangle'],.12*vol,.5,1700,.02,4)}
+ }else{
+   oscHit(ac,dest,time,'sine',220*r*tweak,110*r,.3*vol,.25);
+ }
 }
 function scheduleUser(p,ac,dest,time,vol=1){
  if(!p.buffer) return;
@@ -162,20 +199,20 @@ async function fetchOrientalSource(src){
  const r=await fetch(src.url,{mode:'cors',cache:'force-cache'});if(!r.ok)throw new Error(src.instrument+' HTTP '+r.status);const blob=await r.blob(),buffer=await decodeBlob(blob);return {src,buffer}
 }
 async function loadOrientalKit(button=null){
- ensureAudio();const targetBank=bank;if(button)button.disabled=true;status('Kit oriental réel : téléchargement des enregistrements…');
+ ensureAudio();const targetBank=bank;if(button)button.disabled=true;status('Kit raï réel : téléchargement des enregistrements…');
  try{
-   const loaded=[];for(const src of ORIENTAL_SOURCES){status('Kit oriental : '+src.instrument+'…');loaded.push(await fetchOrientalSource(src))}
+   const loaded=[];for(const src of ORIENTAL_SOURCES){status('Kit raï : '+src.instrument+'…');loaded.push(await fetchOrientalSource(src))}
    let slot=0;
    for(const item of loaded){const times=detectTransientTimes(item.buffer,item.src.count);for(let n=0;n<item.src.count&&slot<16;n++,slot++){const hit=cutHit(item.buffer,times[n]??0,times[n+1],item.src.instrument==='Riq'?.65:.85),blob=new Blob([audioBufferToWav(hit)],{type:'audio/wav'}),id=padId(targetBank,slot),p=pads[id];Object.assign(p,{name:item.src.instrument+' '+String(n+1).padStart(2,'0'),sample:{kind:'user'},buffer:hit,userBlob:blob,cloudPath:null,start:0,end:1,pitch:0,gain:1,muted:false,loop:false,externalMeta:{provider:'Wikimedia Commons',instrument:item.src.instrument,source:item.src.source,license:item.src.license,creator:item.src.creator,realRecording:true}})}}
-   bank=targetBank;selectedPad=padId(bank,0);selectedTrack=0;renderAll();status('Kit ORIENTAL RÉEL chargé : Darbuka · Riq · Bendir sur banque '+bank)
- }catch(e){status('Kit oriental : '+e.message)}
+   bank=targetBank;selectedPad=padId(bank,0);selectedTrack=0;renderAll();status('Kit RAÏ RÉEL chargé : Darbuka · Riq · Bendir sur banque '+bank)
+ }catch(e){status('Kit raï : '+e.message)}
  finally{if(button)button.disabled=false}
 }
 
 function loadFactoryKit(offset=0){for(let i=0;i<16;i++){const s=FACTORY[(offset+i)%FACTORY.length],p=pads[padId(bank,i)];p.sample={kind:'factory',factoryIndex:(offset+i)%FACTORY.length};p.name=s.name;p.buffer=null;p.userBlob=null;p.cloudPath=null;p.externalMeta=null}renderAll();status('Kit chargé sur banque '+bank)}
 function renderKitBrowser(){const root=$('sampleList');$('categories').innerHTML='';root.innerHTML='';
- const oriental=document.createElement('div');oriental.className='sample realKit';oriental.innerHTML=`<div class="sampleWave"></div><div><strong>🥁 KIT ORIENTAL RÉEL</strong><small>Darbuka · Riq · Bendir · 16 vrais hits · banque ${bank}</small></div><button>CHARGER</button>`;const ob=oriental.querySelector('button');ob.onclick=()=>loadOrientalKit(ob);root.appendChild(oriental);
- [['KIT DRUMS',0],['KIT PERCUS',32],['KIT ELECTRO',64],['KIT SYNTH',96]].forEach(([name,off])=>{const row=document.createElement('div');row.className='sample';row.innerHTML=`<div class="sampleWave"></div><div><strong>${name}</strong><small>16 sons synthétiques · banque ${bank}</small></div><button>CHARGER</button>`;row.querySelector('button').onclick=()=>loadFactoryKit(off);root.appendChild(row)})}
+ const oriental=document.createElement('div');oriental.className='sample realKit';oriental.innerHTML=`<div class="sampleWave"></div><div><strong>🥁 KIT RAÏ RÉEL</strong><small>Darbuka · Riq · Bendir · 16 vrais hits · banque ${bank}</small></div><button>CHARGER</button>`;const ob=oriental.querySelector('button');ob.onclick=()=>loadOrientalKit(ob);root.appendChild(oriental);
+ RAI_FACTORY.RAI_KITS.forEach(kit=>{const row=document.createElement('div');row.className='sample';row.innerHTML=`<div class="sampleWave"></div><div><strong>${kit.name}</strong><small>${kit.description} · 16 sons raï · banque ${bank}</small></div><button>CHARGER</button>`;row.querySelector('button').onclick=()=>loadFactoryKit(kit.offset);root.appendChild(row)})}
 function renderProjectBrowser(){const root=$('sampleList');$('categories').innerHTML='';root.innerHTML='';const has=!!localStorage.getItem('mpc-studio-project');const row=document.createElement('div');row.className='sample';row.innerHTML=`<div class="sampleWave"></div><div><strong>Projet local</strong><small>${has?'Sauvegarde disponible':'Aucune sauvegarde'}</small></div><button ${has?'':'disabled'}>OUVRIR</button>`;if(has)row.querySelector('button').onclick=loadLocal;root.appendChild(row)}
 function openMainMenu(){let d=$('mainMenuDialog');if(!d){d=document.createElement('dialog');d.id='mainMenuDialog';d.innerHTML='<div class="cloudCard"><div class="dialogHead"><div><small>MPC STUDIO</small><h2>Menu</h2></div><button id="mainMenuClose">✕</button></div><button id="menuSave">💾 SAUVER LOCAL</button><button id="menuLoad">📂 OUVRIR LOCAL</button><button id="menuStop">■ STOP AUDIO</button><button id="menuCloud">☁ SUPABASE</button></div>';document.body.appendChild(d);$('mainMenuClose').onclick=()=>d.close();$('menuSave').onclick=saveLocal;$('menuLoad').onclick=loadLocal;$('menuStop').onclick=stopPlayback;$('menuCloud').onclick=()=>{$('cloudDialog').showModal();cloudRefresh()}}if(!d.open)d.showModal()}
 function renderTrackSelect(){$('trackSelect').innerHTML='';for(let i=0;i<16;i++){const o=new Option(`${i+1} · ${pads[padId(bank,i)].name}`,i);$('trackSelect').add(o)}$('trackSelect').value=selectedTrack}
@@ -239,8 +276,9 @@ async function reverseSelected(){
 }
 function clearPad(){const p=selected();p.sample=null;p.buffer=null;p.userBlob=null;p.cloudPath=null;p.externalMeta=null;p.name='Pad '+p.id;p.start=0;p.end=1;p.pitch=0;p.gain=1;renderPads();renderEditor()}
 function randomBeat(){
- const pat=patterns[patternIndex];for(const id of Object.keys(pat))pat[id].fill(false);const p=n=>pat[padId(bank,n)];
- [0,4,8,12].forEach(s=>p(0)[s]=true);[4,12].forEach(s=>p(1)[s]=true);for(let s=0;s<16;s+=2)p(2)[s]=Math.random()>.15;for(let s=0;s<16;s++)if(Math.random()>.86)p(3)[s]=true;if(Math.random()>.5)[2,10].forEach(s=>p(8)[s]=true);renderSteps();status('Beat automatique créé sur banque '+bank)}
+ const pat=patterns[patternIndex];for(const id of Object.keys(pat))pat[id].fill(false);const beat=RAI_FACTORY.createRaiBeat();
+ Object.entries(beat).forEach(([slot,steps])=>{const id=padId(bank,Number(slot));for(const s of steps)pat[id][s]=true});
+ renderSteps();status('Beat automatique RAÏ créé sur banque '+bank)}
 function randomKit(){for(let i=0;i<16;i++){const id=padId(bank,i),s=FACTORY[Math.floor(Math.random()*FACTORY.length)];pads[id].sample={kind:'factory',factoryIndex:FACTORY.indexOf(s)};pads[id].name=s.name;pads[id].buffer=null;pads[id].userBlob=null;pads[id].cloudPath=null;pads[id].externalMeta=null}renderPads();renderEditor();renderTrackSelect();status('Kit aléatoire chargé')}
 
 function serializable(includeCloud=true){
