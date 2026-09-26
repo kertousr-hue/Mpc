@@ -83,10 +83,10 @@ Success means a user can build a multi-bar groove, shape individual steps, mix t
 
 9. Sonilo integration
    - New "SONILO AI" creation panel.
-   - Generate music or sound effects from text through server-side Vercel endpoints.
+   - Generate music or sound effects from text through authenticated Supabase Edge Functions.
    - Poll asynchronous Sonilo tasks and import the resulting audio into the selected pad.
    - No Sonilo API key, password, token, or secret is ever stored in browser code, localStorage, IndexedDB, exported project JSON, Supabase project_data, or GitHub.
-   - Server reads `SONILO_API_KEY` from Vercel environment variables.
+   - Server reads `SONILO_API_KEY` from Supabase Edge Function project secrets.
    - Validate request size, duration, text length, and allowed generation type before sending to Sonilo.
    - UI clearly marks generation as an external service operation.
 
@@ -239,32 +239,36 @@ The visual redesign will use the available design tooling (12ui) to generate can
 
 ## 8. Sonilo security architecture
 
-MPC Studio is currently mostly static client-side code. Sonilo requires a server boundary.
+MPC Studio is currently mostly static client-side code. Sonilo requires a server boundary. Because the Sonilo key is being stored in Supabase, the V2 server boundary uses Supabase Edge Functions.
 
-Add Vercel Functions:
+Add Supabase Edge Functions:
 
-- `api/sonilo/generate.js`
+- `supabase/functions/sonilo-generate/index.ts`
   - POST
+  - authenticated user access only
   - accepts a narrow allow-listed payload for `music` or `sfx`
   - validates prompt/duration/options
-  - sends request to Sonilo using `process.env.SONILO_API_KEY`
+  - sends request to Sonilo using `Deno.env.get('SONILO_API_KEY')`
 
-- `api/sonilo/task.js`
-  - GET with task id
+- `supabase/functions/sonilo-task/index.ts`
+  - POST with task id
+  - authenticated user access only
   - returns normalized task state and only the fields required by the client
 
-Optional future endpoint:
-- `api/sonilo/usage.js` for account usage display
+Optional future function:
+- `supabase/functions/sonilo-usage/index.ts` for account usage display
 
 Security:
-- secret only in Vercel Environment Variables
+- secret only in Supabase Edge Function project secrets
 - never echo the API key
+- browser invokes the function through the signed-in Supabase session
 - no client-provided upstream URL
-- basic same-origin validation
+- strict allow-list of Sonilo operations and parameters
 - response normalization
 - reasonable per-request size limits
-- no logging of Authorization headers
-- no secret in service worker cache
+- no logging of Authorization headers or Sonilo credentials
+- no secret in service worker cache, localStorage, IndexedDB, project JSON, or database project_data
+- deploy only to the Supabase project that owns MPC Studio; do not silently reuse an unrelated application project
 
 If the currently exposed key was shared in chat or screenshots, it must be revoked and replaced before production use.
 
@@ -290,8 +294,8 @@ Expected changes:
 - new `automation.js`: parameter locks and live automation
 - new `midi.js`: Web MIDI and MIDI export
 - new `sonilo.js`: client UI and calls to same-origin Vercel functions
-- new `api/sonilo/generate.js`
-- new `api/sonilo/task.js`
+- new `supabase/functions/sonilo-generate/index.ts`
+- new `supabase/functions/sonilo-task/index.ts`
 - `index.html`: new controls/subviews
 - `styles.css`: new responsive UI
 - `sw.js`: cache new local static modules, never cache Sonilo API responses
@@ -331,7 +335,7 @@ Phase 2: per-step performance parameters + track grid.
 Phase 3: mixer + FX.  
 Phase 4: automation + song arrangement.  
 Phase 5: MIDI + stems.  
-Phase 6: secure Sonilo backend + creation UI.  
+Phase 6: secure Supabase Edge Function Sonilo backend + creation UI.  
 Phase 7: mobile/desktop visual polish with 12ui and full QA.
 
 Each phase must leave the app usable and backward compatible.
