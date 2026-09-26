@@ -189,3 +189,19 @@ body[data-mode="creation"] .workspace{grid-template-columns:minmax(500px,1fr) mi
  .grooveStepEditor{grid-template-columns:1fr 1fr}
  .grooveStepEditor button{min-height:44px}
 }
+
+
+/* Groovebox V2 mixer / FX / automation */
+.grooveMixerPanel{display:grid;grid-template-columns:repeat(4,minmax(170px,1fr));gap:8px;max-height:560px;overflow:auto}
+.mixStrip{display:grid;gap:7px;padding:10px;border:1px solid #1d3c50;border-radius:9px;background:linear-gradient(180deg,#0c1a24,#071018)}
+.mixStrip header{display:flex;justify-content:space-between;gap:6px;align-items:center}.mixStrip header b{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mixStrip header small{font-size:8px;color:#5dcdfb}
+.mixStrip label,.grooveFxPanel label,.grooveAutomationPanel label{display:grid;gap:4px;font-size:9px;color:#819bab}.mixStrip input,.grooveFxPanel input,.grooveAutomationPanel input{width:100%;accent-color:#16bdf8}
+.mixButtons{display:grid;grid-template-columns:1fr 1fr;gap:5px}.mixButtons button.active{border-color:#e9a63b;color:#ffe0a0;background:#36230c}
+.mixStrip details{border-top:1px solid #183447;padding-top:6px}.mixStrip summary{font-size:9px;color:#7ecff3;cursor:pointer}
+.grooveFxPanel,.grooveAutomationPanel{display:grid;gap:10px;padding:10px;border:1px solid #1d3c50;border-radius:9px;background:#08141d}
+.fxRackHead,.automationHead{display:flex;justify-content:space-between;align-items:center;gap:10px}.fxRackHead>div,.automationHead>div{display:grid}.fxRackHead small,.automationHead small{font-size:8px;color:#6abddb}.fxRackHead b,.automationHead b{font-size:12px;color:#d8f4ff}.automationHead span{font-size:9px;color:#81dca8}
+.fxRackGrid{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:9px}.fxSwitches{display:flex;gap:7px}.fxSwitches button.active,#automationArm.active{border-color:#25c66a;color:#a8ffca;background:#0c3420}
+.automationControls{display:grid;grid-template-columns:repeat(6,minmax(120px,1fr));gap:8px;align-items:end}
+.automationControls button{min-height:38px}
+@media(max-width:900px){.grooveMixerPanel{grid-template-columns:repeat(2,minmax(155px,1fr))}.fxRackGrid{grid-template-columns:repeat(2,1fr)}.automationControls{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.grooveMixerPanel{display:flex;overflow:auto;max-height:none;scroll-snap-type:x proximity}.mixStrip{min-width:82vw;scroll-snap-align:start}.fxRackGrid{grid-template-columns:1fr 1fr}.automationControls{grid-template-columns:1fr 1fr}.automationControls button{min-height:44px}}
