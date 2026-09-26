@@ -42,3 +42,24 @@ test('encodeSong concatenates arranged patterns',()=>{
   assert.equal(text(bytes,14,18),'MTrk');
   assert.ok(bytes.length>40);
 });
+
+
+test('patternEvents follows micro timing and keeps note-offs inside step',()=>{
+  const p=seq.createPattern({padIds:['A01'],bars:1});
+  p.tracks.A01[1]=seq.normalizeStep({on:true,micro:-.25,ratchet:4,pitch:2});
+  const out=midi.patternEvents(p,0,{swing:0,cycleSeed:'test'});
+  const ons=out.events.filter(e=>e.data[0]===0x90);
+  const offs=out.events.filter(e=>e.data[0]===0x80);
+  assert.equal(ons.length,4);
+  assert.ok(ons[0].tick<120);
+  assert.ok(offs.every(e=>e.tick<240));
+});
+
+test('patternEvents uses independent probability per pad',()=>{
+  const p=seq.createPattern({padIds:['A01','A02'],bars:4});
+  for(let i=0;i<64;i++){p.tracks.A01[i]=seq.normalizeStep({on:true,probability:.5});p.tracks.A02[i]=seq.normalizeStep({on:true,probability:.5})}
+  const out=midi.patternEvents(p,0,{cycleSeed:'same'});
+  const a=out.events.filter(e=>e.data[0]===0x90&&e.padId==='A01').length;
+  const b=out.events.filter(e=>e.data[0]===0x90&&e.padId==='A02').length;
+  assert.notEqual(a,b);
+});
