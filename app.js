@@ -30,7 +30,11 @@ for(const b of BANKS) for(let i=0;i<16;i++){
  pads[id]={id,name:DEFAULT_NAMES[i],gain:1,pitch:0,start:0,end:1,muted:false,loop:false,sample,userBlob:null,buffer:null,cloudPath:null};
 }
 const patterns=Array.from({length:PATTERNS},()=>Object.fromEntries(BANKS.flatMap(b=>Array.from({length:16},(_,i)=>[b+String(i+1).padStart(2,'0'),Array(STEPS).fill(false)]))));
-[0,4,8,12].forEach(s=>patterns[0].A01[s]=true); [4,12].forEach(s=>patterns[0].A02[s]=true); [2,6,10,14].forEach(s=>patterns[0].A03[s]=true);
+const INITIAL_RAI_BEAT=RAI_FACTORY.createRaiBeat();
+Object.entries(INITIAL_RAI_BEAT).forEach(([slot,steps])=>{
+ const id='A'+String(Number(slot)+1).padStart(2,'0');
+ for(const s of steps)patterns[0][id][s]=true;
+});
 
 function ensureAudio(){
  if(!audioCtx){
