@@ -54,6 +54,7 @@ jobs:
           node --check virtualdj-files.js
           node --check virtualdj-catalogs.js
           node --check playwright.config.js
+          node --check sw.js
 
       - name: Exécuter les tests JavaScript
         run: npm test
