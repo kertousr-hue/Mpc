@@ -1,4 +1,4 @@
-const CACHE = 'mpc-studio-v26-groovebox-complete';
+const CACHE = 'mpc-studio-v27-audit-fixes';
 const SHELL = [
   "./",
   "./index.html",
