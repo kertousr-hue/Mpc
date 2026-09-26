@@ -23,7 +23,8 @@ jobs:
       - name: Vérifier JavaScript
         run: |
           node --check app.js
-          node --check rai-factory.js\n          node --check rai-real-kit.js
+          node --check rai-factory.js
+          node --check rai-real-kit.js
           node --check cloud-project-core.js
           node --check sequencer-core.js
           node --check sequencer-v2.js
@@ -74,7 +75,8 @@ jobs:
       - name: Vérifier les fichiers essentiels
         run: |
           test -f index.html
-          test -f rai-factory.js\n          test -f rai-real-kit.js
+          test -f rai-factory.js
+          test -f rai-real-kit.js
           test -f cloud-project-core.js
           test -f styles.css
           test -f app.js
