@@ -229,7 +229,7 @@ body[data-mode="creation"] .workspace{grid-template-columns:minmax(500px,1fr) mi
 .midiLearnGrid article{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;padding:10px;border:1px solid #1b394b;border-radius:8px;background:#0a1821}
 .midiLearnGrid article b,.midiLearnGrid article small{grid-column:1/-1}.midiLearnGrid article small{font-size:9px;color:#829bab}
 .midiLearning{padding:8px;border:1px dashed #2a5068;border-radius:7px;font-size:10px;color:#89c9e9}
-.soniloCard,.vstCard{width:min(620px,94vw);display:grid;gap:10px;background:#09131b;border:1px solid #2a4b60;border-radius:14px;padding:17px;box-shadow:0 30px 80px #000b}
+.soniloCard,.vstCard{width:min(620px,calc(100dvw - 16px));max-width:calc(100dvw - 16px);display:grid;gap:10px;background:#09131b;border:1px solid #2a4b60;border-radius:14px;padding:17px;box-shadow:0 30px 80px #000b}
 .soniloCard p,.vstCard p{font-size:12px;color:#94aab9;line-height:1.5;margin:0}
 .soniloCard label,.vstCard label{display:grid;gap:5px;font-size:10px;color:#8fa8b8}.soniloCard input,.soniloCard select,.soniloCard textarea,.vstCard input,.vstCard select{width:100%}
 .soniloCard textarea{resize:vertical;min-height:92px;background:#071119;color:#e6f3fa;border:1px solid #244255;border-radius:6px;padding:9px}
