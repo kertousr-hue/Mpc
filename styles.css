@@ -131,7 +131,8 @@ button:disabled{opacity:.4;cursor:not-allowed;filter:saturate(.3)}
 /* Les 3 grands modes affichent réellement des espaces différents */
 body[data-mode="sampling"] .sequencer{display:none}
 body[data-mode="sequencing"] .browser,
-body[data-mode="sequencing"] .editor{display:none}
+body[data-mode="sequencing"] .editor,
+body[data-mode="sequencing"] .padPanel{display:none}
 body[data-mode="sequencing"] .workspace{grid-template-columns:1fr}
 body[data-mode="creation"] .browser,
 body[data-mode="creation"] .sequencer{display:none}
