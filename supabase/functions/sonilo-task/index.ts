@@ -52,7 +52,7 @@ Deno.serve(async (req: Request) => {
   const taskId = String(body?.taskId || '')
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$/.test(taskId)) return json({ error: { code: 'invalid_task_id' } }, 400)
 
-  const apiKey = Deno.env.get('SONILO_API_KEY')
+  const apiKey = Deno.env.get('SONILO_API_KEY') || Deno.env.get('Sonilo-api-key')
   if (!apiKey) return json({ error: { code: 'sonilo_not_configured' } }, 503)
 
   let upstream: Response
