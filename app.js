@@ -1,7 +1,10 @@
 const $=id=>document.getElementById(id);
 const BANKS=['A','B','C','D'], STEPS=16, PATTERNS=8;
 const RAI_FACTORY=window.MPCRaiFactory;
+const CLOUD_PROJECT=window.MPCCloudProjectCore;
 if(!RAI_FACTORY)throw new Error('MPCRaiFactory requis');
+if(!CLOUD_PROJECT)throw new Error('MPCCloudProjectCore requis');
+const cloudProjectState=CLOUD_PROJECT.createCloudProjectState();
 const FACTORY_SPEC=RAI_FACTORY.FACTORY_SPEC;
 const FACTORY=RAI_FACTORY.buildFactory();
 const DEFAULT_NAMES=RAI_FACTORY.bankIndices('A').map(i=>FACTORY[i].name);
@@ -306,12 +309,12 @@ function openAudioDb(){return new Promise((resolve,reject)=>{const r=indexedDB.o
 async function saveAudioDb(){const db=await openAudioDb();await new Promise((resolve,reject)=>{const tx=db.transaction('audio','readwrite'),st=tx.objectStore('audio');st.clear();for(const [id,p] of Object.entries(pads))if(p.userBlob)st.put(p.userBlob,id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}
 async function restoreAudioDb(){const db=await openAudioDb();await Promise.all(Object.keys(pads).map(id=>new Promise((resolve)=>{const r=db.transaction('audio').objectStore('audio').get(id);r.onsuccess=async()=>{if(r.result){pads[id].userBlob=r.result;try{pads[id].buffer=await decodeBlob(r.result);pads[id].sample={kind:'user'}}catch(e){}}resolve()};r.onerror=resolve})));db.close()}
 async function saveLocal(){try{localStorage.setItem('mpc-studio-project',JSON.stringify(serializable()));await saveAudioDb();status('Projet + samples sauvegardés localement')}catch(e){status('Sauvegarde locale : '+e.message)}}
-async function loadLocal(){const raw=localStorage.getItem('mpc-studio-project');if(!raw)return;try{await applyProject(JSON.parse(raw));await restoreAudioDb();renderAll();status('Projet local + samples ouverts')}catch(e){status('Ouverture locale : '+e.message)}}
+async function loadLocal(){const raw=localStorage.getItem('mpc-studio-project');if(!raw)return;try{CLOUD_PROJECT.resetActiveProject(cloudProjectState);await applyProject(JSON.parse(raw));await restoreAudioDb();renderAll();status('Projet local + samples ouverts')}catch(e){status('Ouverture locale : '+e.message)}}
 function downloadText(name,text,type='application/json'){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000)}
 async function blobToDataUrl(blob){return await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(r.error);r.readAsDataURL(blob)})}
 async function dataUrlToBlob(url){const r=await fetch(url);return await r.blob()}
 async function exportProject(){try{const d=serializable();d.audioFiles={};for(const [id,p] of Object.entries(pads))if(p.userBlob)d.audioFiles[id]=await blobToDataUrl(p.userBlob);downloadText(($('projectName').value||'projet')+'.mpc.json',JSON.stringify(d,null,2));status('Projet + samples exportés')}catch(e){status('Export projet : '+e.message)}}
-async function importProjectFile(f){try{const d=JSON.parse(await f.text());await applyProject(d);if(d.audioFiles){for(const [id,url] of Object.entries(d.audioFiles))if(pads[id]){const blob=await dataUrlToBlob(url);pads[id].userBlob=blob;pads[id].buffer=await decodeBlob(blob);pads[id].sample={kind:'user'}}}renderAll();status('Projet + samples importés')}catch(e){status('Import impossible : '+e.message)}}
+async function importProjectFile(f){try{CLOUD_PROJECT.resetActiveProject(cloudProjectState);const d=JSON.parse(await f.text());await applyProject(d);if(d.audioFiles){for(const [id,url] of Object.entries(d.audioFiles))if(pads[id]){const blob=await dataUrlToBlob(url);pads[id].userBlob=blob;pads[id].buffer=await decodeBlob(blob);pads[id].sample={kind:'user'}}}renderAll();status('Projet + samples importés')}catch(e){status('Import impossible : '+e.message)}}
 
 async function renderWav(){
  ensureAudio();const bpm=+$('bpm').value||92,dur=60/bpm*4+.5,off=new OfflineAudioContext(2,Math.ceil(audioCtx.sampleRate*dur),audioCtx.sampleRate),mg=off.createGain();mg.gain.value=+$('master').value/100;mg.connect(off.destination);
@@ -331,12 +334,17 @@ async function initSupabase(){
  const c=getSbConfig();$('sbUrl').value=c.url;$('sbKey').value=c.key;if(!c.url||!safeKey(c.key)||!window.supabase){$('authState').textContent='Supabase non configuré';return}
  try{sb=window.supabase.createClient(c.url,c.key);const {data}=await sb.auth.getUser();sbUser=data.user||null;updateCloudState();sb.auth.onAuthStateChange((_e,s)=>{sbUser=s?.user||null;updateCloudState()})}catch(e){$('authState').textContent='Erreur Supabase : '+e.message}
 }
-function updateCloudState(){$('cloudBtn').classList.toggle('connected',!!sbUser);$('authState').textContent=sbUser?('Connecté : '+sbUser.email):(sb?'Supabase configuré · non connecté':'Supabase non configuré')}
+function updateCloudState(){if(!sbUser)CLOUD_PROJECT.resetActiveProject(cloudProjectState);$('cloudBtn').classList.toggle('connected',!!sbUser);$('authState').textContent=sbUser?('Connecté : '+sbUser.email):(sb?'Supabase configuré · non connecté':'Supabase non configuré')}
 async function cloudSave(){
  if(!sbUser)return status('Connecte-toi à Supabase');try{
-   const initial=serializable();const {data:row,error}=await sb.from('music_projects').insert({user_id:sbUser.id,name:initial.name,bpm:initial.bpm,swing:initial.swing,project_data:initial}).select('id').single();if(error)throw error;
-   for(const [id,p] of Object.entries(pads))if(p.userBlob){const ext=(p.userBlob.type||'audio/webm').includes('mpeg')?'mp3':(p.userBlob.type||'').includes('wav')?'wav':'webm',path=`${sbUser.id}/${row.id}/${id}.${ext}`;const up=await sb.storage.from('music-samples').upload(path,p.userBlob,{upsert:true,contentType:p.userBlob.type||'application/octet-stream'});if(up.error)throw up.error;p.cloudPath=path}
-   const finalData=serializable();const {error:uerr}=await sb.from('music_projects').update({project_data:finalData,updated_at:new Date().toISOString()}).eq('id',row.id);if(uerr)throw uerr;status('Projet sauvegardé dans Supabase');await cloudRefresh()
+   const initial=serializable(),operation=CLOUD_PROJECT.saveOperation(cloudProjectState.activeProjectId);let projectId=cloudProjectState.activeProjectId;
+   if(operation==='insert'){
+     const {data:row,error}=await sb.from('music_projects').insert({user_id:sbUser.id,name:initial.name,bpm:initial.bpm,swing:initial.swing,project_data:initial}).select('id').single();if(error)throw error;
+     projectId=row.id;CLOUD_PROJECT.setLoadedProject(cloudProjectState,projectId);
+   }
+   for(const [id,p] of Object.entries(pads))if(p.userBlob){const ext=(p.userBlob.type||'audio/webm').includes('mpeg')?'mp3':(p.userBlob.type||'').includes('wav')?'wav':'webm',path=`${sbUser.id}/${projectId}/${id}.${ext}`;const up=await sb.storage.from('music-samples').upload(path,p.userBlob,{upsert:true,contentType:p.userBlob.type||'application/octet-stream'});if(up.error)throw up.error;p.cloudPath=path}
+   const finalData=serializable();const {data:saved,error:uerr}=await sb.from('music_projects').update({name:finalData.name,bpm:finalData.bpm,swing:finalData.swing,project_data:finalData,updated_at:new Date().toISOString()}).eq('id',projectId).eq('user_id',sbUser.id).select('id').single();if(uerr||!saved)throw uerr||new Error('Projet Cloud introuvable');
+   status(operation==='insert'?'Projet créé dans Supabase':'Projet Cloud mis à jour');await cloudRefresh()
  }catch(e){status('Cloud : '+e.message)}
 }
 async function cloudRefresh(){
@@ -345,7 +353,7 @@ async function cloudRefresh(){
 async function downloadCloudSamples(){
  if(!sb)return;for(const p of Object.values(pads))if(p.cloudPath){const {data,error}=await sb.storage.from('music-samples').download(p.cloudPath);if(!error&&data){p.userBlob=data;p.buffer=await decodeBlob(data);p.sample={kind:'user'}}}
 }
-async function cloudLoad(){const id=$('cloudProjects').value,row=cloudRows.find(r=>r.id===id);if(!row)return;try{await applyProject(row.project_data,true);status('Projet Cloud ouvert')}catch(e){status('Cloud : '+e.message)}}
+async function cloudLoad(){const id=$('cloudProjects').value,row=cloudRows.find(r=>r.id===id);if(!row)return;try{await applyProject(row.project_data,true);CLOUD_PROJECT.setLoadedProject(cloudProjectState,row.id);status('Projet Cloud ouvert')}catch(e){status('Cloud : '+e.message)}}
 
 function renderAll(){document.querySelectorAll('#banks button').forEach(b=>b.classList.toggle('active',b.dataset.bank===bank));renderPads();renderEditor();renderTrackSelect();renderPatternSelect();renderSteps()}
 function bind(){
@@ -377,7 +385,7 @@ function bind(){
  $('loopSeqBtn').onclick=()=>{loopSequence=!loopSequence;$('loopSeqBtn').classList.toggle('active',loopSequence);$('loopSeqBtn').textContent=loopSequence?'↻ LECTURE EN BOUCLE':'→ LECTURE 1 FOIS';status(loopSequence?'Boucle activée':'Lecture unique activée')};$('loopSeqBtn').classList.toggle('active',loopSequence);
  document.querySelectorAll('.bigModes button').forEach(b=>b.onclick=()=>{currentMode=b.dataset.mode;document.body.dataset.mode=currentMode;document.querySelectorAll('.bigModes button').forEach(x=>x.classList.remove('active'));b.classList.add('active');status(b.textContent.trim())});
  $('saveBtn').onclick=saveLocal;$('saveLocalBtn').onclick=saveLocal;$('exportProjectBtn').onclick=exportProject;$('projectImport').onchange=e=>{if(e.target.files[0])importProjectFile(e.target.files[0]);e.target.value=''};$('exportWavBtn').onclick=renderWav;
- $('cloudBtn').onclick=()=>{$('cloudDialog').showModal();cloudRefresh()};$('saveSbBtn').onclick=async()=>{const url=$('sbUrl').value.trim().replace(/\/$/,''),key=$('sbKey').value.trim();if(!/^https:\/\/.+\.supabase\.co$/.test(url)||!safeKey(key))return $('authState').textContent='URL ou Publishable key invalide';localStorage.setItem('mpc-supabase',JSON.stringify({url,key}));sb=null;sbUser=null;await initSupabase();status('Configuration Supabase enregistrée')};
+ $('cloudBtn').onclick=()=>{$('cloudDialog').showModal();cloudRefresh()};$('saveSbBtn').onclick=async()=>{const url=$('sbUrl').value.trim().replace(/\/$/,''),key=$('sbKey').value.trim();if(!/^https:\/\/.+\.supabase\.co$/.test(url)||!safeKey(key))return $('authState').textContent='URL ou Publishable key invalide';localStorage.setItem('mpc-supabase',JSON.stringify({url,key}));CLOUD_PROJECT.resetActiveProject(cloudProjectState);sb=null;sbUser=null;await initSupabase();status('Configuration Supabase enregistrée')};
  $('signInBtn').onclick=async()=>{if(!sb)return;const {error}=await sb.auth.signInWithPassword({email:$('email').value,password:$('password').value});if(error)$('authState').textContent=error.message};
  $('signUpBtn').onclick=async()=>{if(!sb)return;const {error}=await sb.auth.signUp({email:$('email').value,password:$('password').value});$('authState').textContent=error?error.message:'Compte créé. Vérifie ton e-mail si demandé.'};
  $('signOutBtn').onclick=async()=>{if(sb)await sb.auth.signOut()};
