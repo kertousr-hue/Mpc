@@ -25,7 +25,7 @@ function normalizeRequest(value: any) {
     if (duration < 0.5 || duration > 180) throw new Error('invalid_duration')
     if (!['wav', 'mp3', 'aac', 'flac'].includes(format)) throw new Error('invalid_format')
   }
-  return { type, prompt, duration, format }
+  return { type, prompt, duration, format } as { type: 'music' | 'sfx'; prompt: string; duration: number; format: string }
 }
 
 function upstreamError(status: number, retryAfter: string | null) {
@@ -49,18 +49,24 @@ function projectPublishableKey() {
   }
 }
 
+function databaseContext(req: Request) {
+  return {
+    url: Deno.env.get('SUPABASE_URL') || '',
+    apikey: projectPublishableKey(),
+    authorization: req.headers.get('Authorization') || '',
+  }
+}
+
 async function reserveQuota(req: Request, kind: 'music' | 'sfx') {
-  const url = Deno.env.get('SUPABASE_URL') || ''
-  const apikey = projectPublishableKey()
-  const authorization = req.headers.get('Authorization') || ''
-  if (!url || !apikey || !authorization) return { allowed: false, code: 'rate_guard_unavailable' }
+  const ctx = databaseContext(req)
+  if (!ctx.url || !ctx.apikey || !ctx.authorization) return { allowed: false, code: 'rate_guard_unavailable' }
 
   try {
-    const response = await fetch(`${url}/rest/v1/rpc/reserve_sonilo_generation`, {
+    const response = await fetch(`${ctx.url}/rest/v1/rpc/reserve_sonilo_generation`, {
       method: 'POST',
       headers: {
-        Authorization: authorization,
-        apikey,
+        Authorization: ctx.authorization,
+        apikey: ctx.apikey,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ p_kind: kind }),
@@ -72,12 +78,54 @@ async function reserveQuota(req: Request, kind: 'music' | 'sfx') {
   }
 }
 
+async function releaseReservation(req: Request, reservationId: number) {
+  const ctx = databaseContext(req)
+  if (!ctx.url || !ctx.apikey || !ctx.authorization || !Number.isFinite(reservationId) || reservationId <= 0) return false
+  try {
+    const response = await fetch(`${ctx.url}/rest/v1/sonilo_generation_log?id=eq.${encodeURIComponent(String(reservationId))}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: ctx.authorization,
+        apikey: ctx.apikey,
+        Prefer: 'return=minimal',
+      },
+    })
+    return response.ok
+  } catch (_) {
+    return false
+  }
+}
+
+async function recordTask(req: Request, taskId: string, kind: 'music' | 'sfx') {
+  const ctx = databaseContext(req)
+  if (!ctx.url || !ctx.apikey || !ctx.authorization) return false
+  try {
+    const response = await fetch(`${ctx.url}/rest/v1/rpc/record_sonilo_task`, {
+      method: 'POST',
+      headers: {
+        Authorization: ctx.authorization,
+        apikey: ctx.apikey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ p_task_id: taskId, p_kind: kind }),
+    })
+    return response.ok
+  } catch (_) {
+    return false
+  }
+}
+
+async function rollback(req: Request, reservationId: number) {
+  const released = await releaseReservation(req, reservationId)
+  if (!released) console.error('Sonilo quota rollback failed')
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return json({ error: { code: 'method_not_allowed' } }, 405)
   if (!req.headers.get('Authorization')) return json({ error: { code: 'auth_required' } }, 401)
 
-  let input
+  let input: ReturnType<typeof normalizeRequest>
   try {
     input = normalizeRequest(await req.json())
   } catch (error) {
@@ -92,6 +140,11 @@ Deno.serve(async (req: Request) => {
     const code = String(quota?.code || 'rate_guard_unavailable')
     const retryAfter = Number(quota?.retryAfter) || null
     return json({ error: { code, retryAfter } }, code === 'rate_limited' ? 429 : 503, retryAfter ? { 'Retry-After': String(retryAfter) } : {})
+  }
+
+  const reservationId = Number(quota?.reservationId)
+  if (!Number.isFinite(reservationId) || reservationId <= 0) {
+    return json({ error: { code: 'rate_guard_unavailable' } }, 503)
   }
 
   const form = new FormData()
@@ -115,17 +168,34 @@ Deno.serve(async (req: Request) => {
       body: form,
     })
   } catch (_) {
+    await rollback(req, reservationId)
     return json({ error: { code: 'upstream_unreachable' } }, 502)
   }
 
   if (!upstream.ok) {
     const error = upstreamError(upstream.status, upstream.headers.get('Retry-After'))
+    await rollback(req, reservationId)
     return json({ error }, upstream.status === 429 ? 429 : 502, error.retryAfter ? { 'Retry-After': String(error.retryAfter) } : {})
   }
 
   let data: any
-  try { data = await upstream.json() } catch (_) { return json({ error: { code: 'invalid_upstream_response' } }, 502) }
+  try {
+    data = await upstream.json()
+  } catch (_) {
+    await rollback(req, reservationId)
+    return json({ error: { code: 'invalid_upstream_response' } }, 502)
+  }
+
   const taskId = String(data?.task_id || '')
-  if (!taskId) return json({ error: { code: 'missing_task_id' } }, 502)
+  if (!taskId) {
+    await rollback(req, reservationId)
+    return json({ error: { code: 'missing_task_id' } }, 502)
+  }
+
+  if (!await recordTask(req, taskId, input.type)) {
+    await rollback(req, reservationId)
+    return json({ error: { code: 'task_guard_unavailable' } }, 503)
+  }
+
   return json({ taskId, status: 'processing' }, 202)
 })
