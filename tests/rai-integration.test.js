@@ -17,3 +17,15 @@ test('Groovebox V2 auto beat also uses the shared raï beat definition',()=>{
   const seq=fs.readFileSync('sequencer-v2.js','utf8');
   assert.match(seq,/MPCRaiFactory|RAI_FACTORY|createRaiBeat/);
 });
+
+
+test('app initializes every bank from explicit raï bank definitions',()=>{
+  const app=fs.readFileSync('app.js','utf8');
+  assert.match(app,/bankIndices\(b\)/);
+});
+
+test('kit browser loads explicit kit indices instead of offsets',()=>{
+  const app=fs.readFileSync('app.js','utf8');
+  assert.match(app,/kit\.indices/);
+  assert.doesNotMatch(app,/loadFactoryKit\(kit\.offset\)/);
+});
