@@ -115,9 +115,62 @@ async function recordTask(req: Request, taskId: string, kind: 'music' | 'sfx') {
   }
 }
 
-async function rollback(req: Request, reservationId: number) {
-  const released = await releaseReservation(req, reservationId)
-  if (!released) console.error('Sonilo quota rollback failed')
+function serviceRoleKey() {
+  return Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+}
+
+async function authenticatedUserId(req: Request) {
+  const url = Deno.env.get('SUPABASE_URL') || ''
+  const apikey = projectPublishableKey()
+  const authorization = req.headers.get('Authorization') || ''
+  if (!url || !apikey || !authorization) return null
+  try {
+    const response = await fetch(`${url}/auth/v1/user`, {
+      headers: { Authorization: authorization, apikey },
+    })
+    if (!response.ok) return null
+    const user = await response.json()
+    const id = String(user?.id || '')
+    return /^[0-9a-fA-F-]{36}$/.test(id) ? id : null
+  } catch (_) {
+    return null
+  }
+}
+
+async function rollback(reservationId: number) {
+  const url = Deno.env.get('SUPABASE_URL') || ''
+  const serviceRole = serviceRoleKey()
+  if (!url || !serviceRole || !Number.isFinite(reservationId) || reservationId <= 0) return false
+  try {
+    const response = await fetch(`${url}/rest/v1/sonilo_generation_log?id=eq.${encodeURIComponent(String(reservationId))}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${serviceRole}`, apikey: serviceRole },
+    })
+    return response.ok
+  } catch (_) {
+    return false
+  }
+}
+
+async function recordTask(taskId: string, kind: 'music' | 'sfx', userId: string) {
+  const url = Deno.env.get('SUPABASE_URL') || ''
+  const serviceRole = serviceRoleKey()
+  if (!url || !serviceRole || !userId) return false
+  try {
+    const response = await fetch(`${url}/rest/v1/sonilo_tasks`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${serviceRole}`,
+        apikey: serviceRole,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({ task_id: taskId, user_id: userId, kind }),
+    })
+    return response.ok
+  } catch (_) {
+    return false
+  }
 }
 
 Deno.serve(async (req: Request) => {
@@ -134,6 +187,10 @@ Deno.serve(async (req: Request) => {
 
   const apiKey = Deno.env.get('SONILO_API_KEY') || Deno.env.get('Sonilo-api-key')
   if (!apiKey) return json({ error: { code: 'sonilo_not_configured' } }, 503)
+  if (!serviceRoleKey()) return json({ error: { code: 'task_guard_unavailable' } }, 503)
+
+  const userId = await authenticatedUserId(req)
+  if (!userId) return json({ error: { code: 'task_guard_unavailable' } }, 503)
 
   const quota = await reserveQuota(req, input.type)
   if (!quota?.allowed) {
@@ -168,13 +225,13 @@ Deno.serve(async (req: Request) => {
       body: form,
     })
   } catch (_) {
-    await rollback(req, reservationId)
+    await rollback(reservationId)
     return json({ error: { code: 'upstream_unreachable' } }, 502)
   }
 
   if (!upstream.ok) {
     const error = upstreamError(upstream.status, upstream.headers.get('Retry-After'))
-    await rollback(req, reservationId)
+    await rollback(reservationId)
     return json({ error }, upstream.status === 429 ? 429 : 502, error.retryAfter ? { 'Retry-After': String(error.retryAfter) } : {})
   }
 
@@ -182,18 +239,18 @@ Deno.serve(async (req: Request) => {
   try {
     data = await upstream.json()
   } catch (_) {
-    await rollback(req, reservationId)
+    await rollback(reservationId)
     return json({ error: { code: 'invalid_upstream_response' } }, 502)
   }
 
   const taskId = String(data?.task_id || '')
   if (!taskId) {
-    await rollback(req, reservationId)
+    await rollback(reservationId)
     return json({ error: { code: 'missing_task_id' } }, 502)
   }
 
-  if (!await recordTask(req, taskId, input.type)) {
-    await rollback(req, reservationId)
+  if (!await recordTask(taskId, input.type, userId)) {
+    await rollback(reservationId)
     return json({ error: { code: 'task_guard_unavailable' } }, 503)
   }
 
