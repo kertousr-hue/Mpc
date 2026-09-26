@@ -32,3 +32,36 @@ test('Sonilo generate reserves a server-side quota before upstream generation',(
   assert.match(gen,/rate_limited/);
   assert.match(gen,/SUPABASE_ANON_KEY|SUPABASE_PUBLISHABLE_KEYS/);
 });
+
+
+test('Sonilo schema binds tasks to authenticated owners and supports quota rollback',()=>{
+  const schema=read('supabase-schema.sql');
+  assert.match(schema,/create table if not exists public\.sonilo_tasks/i);
+  assert.match(schema,/alter table public\.sonilo_tasks enable row level security/i);
+  assert.match(schema,/sonilo_tasks_select_own/);
+  assert.match(schema,/sonilo_tasks_insert_own/);
+  assert.match(schema,/grant select, insert on public\.sonilo_tasks to authenticated/i);
+  assert.match(schema,/sonilo_generation_delete_own/);
+  assert.match(schema,/grant select, insert, delete on public\.sonilo_generation_log to authenticated/i);
+  assert.match(schema,/reservationId/);
+  assert.match(schema,/record_sonilo_task/);
+  assert.match(schema,/auth\.uid\(\)/);
+  assert.match(schema,/security invoker/i);
+});
+
+test('Sonilo generate rolls back reservation failures and records task ownership',()=>{
+  const gen=read('supabase/functions/sonilo-generate/index.ts');
+  assert.match(gen,/reservationId/);
+  assert.match(gen,/releaseReservation/);
+  assert.match(gen,/recordTask/);
+  assert.match(gen,/record_sonilo_task/);
+  assert.match(gen,/sonilo_generation_log/);
+});
+
+test('Sonilo task checks ownership before calling upstream',()=>{
+  const task=read('supabase/functions/sonilo-task/index.ts');
+  assert.match(task,/ownsTask/);
+  assert.match(task,/sonilo_tasks/);
+  assert.match(task,/task_not_found/);
+  assert.ok(task.indexOf('ownsTask') < task.indexOf('tasks/'));
+});
