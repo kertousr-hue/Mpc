@@ -23,12 +23,14 @@ test('MPC Studio raï workflow works in desktop and mobile browsers',async({page
 
   for(const bank of ['A','B','C','D']) await assertBankReady(page,bank);
 
-  await page.locator('.bigModes [data-mode="sequencing"]').click();
-  await expect(page.locator('#grooveboxV2')).toBeVisible();
-
   for(const bank of ['A','B','C','D']){
+    await page.locator('.bigModes [data-mode="creation"]').click();
     await assertBankReady(page,bank);
+    await expect(page.locator('#autoBeatBtn')).toBeVisible();
     await page.locator('#autoBeatBtn').click();
+
+    await page.locator('.bigModes [data-mode="sequencing"]').click();
+    await expect(page.locator('#grooveboxV2')).toBeVisible();
     await expect.poll(async()=>page.locator('.grooveStep.active').count()).toBeGreaterThan(0);
   }
 
