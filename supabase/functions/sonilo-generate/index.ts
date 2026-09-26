@@ -50,7 +50,7 @@ Deno.serve(async (req: Request) => {
     return json({ error: { code: String((error as Error).message || 'invalid_request') } }, 400)
   }
 
-  const apiKey = Deno.env.get('SONILO_API_KEY')
+  const apiKey = Deno.env.get('SONILO_API_KEY') || Deno.env.get('Sonilo-api-key')
   if (!apiKey) return json({ error: { code: 'sonilo_not_configured' } }, 503)
 
   const form = new FormData()
