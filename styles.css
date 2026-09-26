@@ -205,3 +205,28 @@ body[data-mode="creation"] .workspace{grid-template-columns:minmax(500px,1fr) mi
 .automationControls button{min-height:38px}
 @media(max-width:900px){.grooveMixerPanel{grid-template-columns:repeat(2,minmax(155px,1fr))}.fxRackGrid{grid-template-columns:repeat(2,1fr)}.automationControls{grid-template-columns:1fr 1fr}}
 @media(max-width:560px){.grooveMixerPanel{display:flex;overflow:auto;max-height:none;scroll-snap-type:x proximity}.mixStrip{min-width:82vw;scroll-snap-align:start}.fxRackGrid{grid-template-columns:1fr 1fr}.automationControls{grid-template-columns:1fr 1fr}.automationControls button{min-height:44px}}
+
+
+/* Groovebox V2 · MIDI / Performance / Sonilo / VST */
+.perfLive{display:flex;gap:5px;align-items:center;margin-left:auto}
+.perfLive button,.perfLive select{min-height:34px}
+.perfLive button.active{border-color:#f3b84b;color:#ffe0a0;background:#352409}
+.grooveMidiPanel{display:grid;gap:10px;padding:10px;border:1px solid #1d3c50;border-radius:9px;background:#08141d}
+.midiHead{display:flex;justify-content:space-between;gap:8px;align-items:center}.midiHead>div{display:grid}.midiHead small{font-size:8px;color:#7ebad6}.midiHead b{font-size:12px;color:#d9f5ff}.midiHead span{font-size:9px;color:#79dca3}
+.midiActions{display:flex;gap:7px;flex-wrap:wrap}.midiLearnGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.midiLearnGrid article{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;padding:10px;border:1px solid #1b394b;border-radius:8px;background:#0a1821}
+.midiLearnGrid article b,.midiLearnGrid article small{grid-column:1/-1}.midiLearnGrid article small{font-size:9px;color:#829bab}
+.midiLearning{padding:8px;border:1px dashed #2a5068;border-radius:7px;font-size:10px;color:#89c9e9}
+.soniloCard,.vstCard{width:min(620px,94vw);display:grid;gap:10px;background:#09131b;border:1px solid #2a4b60;border-radius:14px;padding:17px;box-shadow:0 30px 80px #000b}
+.soniloCard p,.vstCard p{font-size:12px;color:#94aab9;line-height:1.5;margin:0}
+.soniloCard label,.vstCard label{display:grid;gap:5px;font-size:10px;color:#8fa8b8}.soniloCard input,.soniloCard select,.soniloCard textarea,.vstCard input,.vstCard select{width:100%}
+.soniloCard textarea{resize:vertical;min-height:92px;background:#071119;color:#e6f3fa;border:1px solid #244255;border-radius:6px;padding:9px}
+.soniloRow{display:grid;grid-template-columns:1fr 1fr;gap:8px}.soniloPrimary,.vstPrimary{min-height:46px;border-color:#18884a!important;color:#b5ffcf!important;background:linear-gradient(#155b35,#0b3420)!important;font-weight:900}
+.soniloState,.vstState{padding:9px;border:1px solid #1e3b4e;border-radius:7px;background:#0b1821;color:#8fc8e5;font-size:11px}.soniloHint{color:#748b9a;font-size:9px}
+#soniloOpenBtn{border-color:#5d3b89;color:#dab9ff;background:linear-gradient(#26173a,#130b20)}
+#vstOpenBtn{border-color:#72531e;color:#ffd98f;background:linear-gradient(#30230d,#171006)}
+@media(max-width:760px){
+ .perfLive{width:100%;margin-left:0;overflow:auto}.perfLive>*{flex:0 0 auto}
+ .midiLearnGrid{grid-template-columns:1fr}.midiActions{display:grid;grid-template-columns:1fr 1fr}.midiActions button:first-child{grid-column:1/-1}
+ .soniloRow{grid-template-columns:1fr}
+}
