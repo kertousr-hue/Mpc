@@ -1,4 +1,4 @@
-const CACHE = 'mpc-studio-v27-audit-fixes';
+const CACHE = 'mpc-studio-v28-rai-factory';
 const SHELL = [
   "./",
   "./index.html",
