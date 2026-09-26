@@ -179,8 +179,18 @@ body[data-mode="creation"] .workspace{grid-template-columns:minmax(500px,1fr) mi
 .grooveStepEditor output{font-size:10px;color:#c9eafa}
 #grooveAccent.active{color:#ffe096;border-color:#b98525;background:#382809}
 @media(max-width:760px){
- .grooveToolbar{position:relative;top:auto;z-index:auto}
- .grooveToolbar>span{width:100%;order:3;margin-left:0}
+ .grooveToolbar{
+   position:relative;
+   top:auto;
+   z-index:auto;
+   display:grid;
+   grid-template-columns:repeat(2,minmax(0,1fr));
+   align-items:stretch
+ }
+ .grooveToolbar>label{min-width:0}
+ .grooveToolbar>span{width:auto;grid-column:1/-1;order:initial;margin-left:0}
+ .grooveToolbar>#groovePrevBar,
+ .grooveToolbar>#grooveNextBar{width:100%}
  .grooveGrid{max-height:62vh}
  .grooveTrack{grid-template-columns:94px minmax(680px,1fr)}
  .grooveTrackName{position:sticky;left:0;z-index:2;background:#0b1720}
@@ -263,9 +273,9 @@ body[data-mode="creation"] .workspace{grid-template-columns:minmax(500px,1fr) mi
   .fxSwitches button{min-height:44px}
   .grooveTrackName{min-height:44px}
   .grooveViews{
+    grid-column:1/-1;
     width:100%;
     max-width:100%;
-    flex:0 0 100%;
     display:grid;
     grid-template-columns:repeat(3,minmax(0,1fr));
     gap:5px;
