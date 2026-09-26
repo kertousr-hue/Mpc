@@ -30,3 +30,10 @@ test('findMappingTarget matches by type channel and number',()=>{
   assert.equal(midi.findMappingTarget(map,{type:'cc',channel:1,number:10}),'mixer:A01:pan');
   assert.equal(midi.findMappingTarget(map,{type:'cc',channel:0,number:10}),null);
 });
+
+
+test('defaultArrangement excludes empty patterns',()=>{
+  const empty={tracks:{A01:[{on:false}]}};
+  const active={tracks:{A01:[{on:true}]}};
+  assert.deepEqual(midi.defaultArrangement([empty,active,empty]),[{patternIndex:1,repeats:1}]);
+});
