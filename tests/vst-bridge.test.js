@@ -27,3 +27,10 @@ test('bridgeRequestPolicy keeps mixed content blocked but allows private HTTPS',
 test('normalizeBridgeUrl rejects public hosts',()=>{
   assert.throws(()=>v.normalizeBridgeUrl('http://example.com:8766'),/locale|LAN/i);
 });
+
+
+test('default bridge URL follows private HTTPS app origin',()=>{
+  assert.equal(v.defaultBridgeUrlFor('https://192.168.1.50:8766/app'),'https://192.168.1.50:8766');
+  assert.equal(v.defaultBridgeUrlFor('http://127.0.0.1:8766/'),'http://127.0.0.1:8766');
+  assert.equal(v.defaultBridgeUrlFor('https://mpc.example/'),'http://127.0.0.1:8766');
+});
