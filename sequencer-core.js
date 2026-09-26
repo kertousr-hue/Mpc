@@ -61,12 +61,13 @@
   function shouldSwing(stepIndex,lane){if(lane==='odd')return stepIndex%2===1;if(lane==='all')return true;if(lane==='none')return false;return stepIndex%2===1}
   function expandStepEvents(args){
     args=args||{};var step=normalizeStep(args.step);if(!step.on||step.probability<=0)return [];
-    var seed=String(args.cycleSeed==null?'0':args.cycleSeed)+':'+String(args.stepIndex||0);
+    var seed=String(args.cycleSeed==null?'0':args.cycleSeed)+':'+String(args.seedKey==null?'':args.seedKey)+':'+String(args.stepIndex||0);
     if(step.probability<1&&hashSeed(seed)>=step.probability)return [];
-    var sd=Math.max(.0001,Number(args.stepDuration)||.1),safe=Number(args.baseTime)||0,idx=Math.max(0,Number(args.stepIndex)||0),amount=clamp(args.swing||0,0,.7),lane=args.swingLane||'even';
+    var sd=Math.max(.0001,Number(args.stepDuration)||.1),base=Number(args.baseTime)||0,safe=args.safeTime==null?base:Number(args.safeTime),idx=Math.max(0,Number(args.stepIndex)||0),amount=clamp(args.swing||0,0,.7),lane=args.swingLane||'even';
+    if(!Number.isFinite(safe))safe=base;
     var offset=0;if(shouldSwing(idx,lane))offset+=sd*amount*.55;offset+=sd*step.micro;
-    var first=Math.max(safe,safe+offset),count=step.ratchet,gap=sd/count,events=[];
-    for(var i=0;i<count;i++)events.push({time:Math.max(safe,first+i*gap),velocity:step.velocity*(step.accent?1.18:1),pitch:step.pitch,locks:Object.assign({},step.locks),accent:step.accent,ratchetIndex:i});
+    var first=Math.max(safe,base+offset),stepEnd=base+sd,count=step.ratchet,available=Math.max(.0001,stepEnd-first),gap=available/count,events=[];
+    for(var i=0;i<count;i++)events.push({time:Math.max(safe,Math.min(stepEnd-.000001,first+i*gap)),restoreTime:Math.max(safe,stepEnd-.000001),velocity:step.velocity*(step.accent?1.18:1),pitch:step.pitch,locks:Object.assign({},step.locks),accent:step.accent,ratchetIndex:i});
     return events;
   }
   return {DEFAULT_STEP:DEFAULT_STEP,createDefaultStep:createDefaultStep,normalizeStep:normalizeStep,createPattern:createPattern,resizePattern:resizePattern,migrateLegacyPatterns:migrateLegacyPatterns,normalizeV7Pattern:normalizeV7Pattern,expandStepEvents:expandStepEvents};
