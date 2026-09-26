@@ -41,29 +41,6 @@ test('MPC Studio raï workflow works in desktop and mobile browsers',async({page
     const button=page.locator('.grooveViews [data-view="'+view+'"]');
     await expect(button).toBeVisible();
     await button.click();
-    if(testInfo.project.name==='chromium-mobile'&&view==='step'){
-      await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
-      const shift=await page.evaluate(()=>{
-        const info=selector=>{
-          const el=document.querySelector(selector),r=el&&el.getBoundingClientRect();
-          if(!r)return null;
-          const cx=r.left+r.width/2,cy=r.top+r.height/2,hit=document.elementFromPoint(cx,cy);
-          return {rect:{x:r.x,y:r.y,w:r.width,h:r.height},hit:hit&&{tag:hit.tagName,cls:hit.className,view:hit.dataset&&hit.dataset.view,id:hit.dataset&&hit.dataset.id}};
-        };
-        return {
-          scrollY:window.scrollY,
-          innerHeight:window.innerHeight,
-          docHeight:document.documentElement.scrollHeight,
-          views:info('.grooveViews'),
-          step:info('.grooveViews [data-view="step"]'),
-          mixer:info('.grooveViews [data-view="mixer"]'),
-          padD15:info('.pad[data-id="D15"]'),
-          grooveGrid:{hidden:document.getElementById('grooveGrid').hidden,display:getComputedStyle(document.getElementById('grooveGrid')).display},
-          stepEditor:{hidden:document.getElementById('grooveStepEditor').hidden,display:getComputedStyle(document.getElementById('grooveStepEditor')).display}
-        };
-      });
-      console.log('MOBILE_AFTER_STEP_SHIFT '+JSON.stringify(shift));
-    }
   }
   await expect(page.locator('#grooveMidiPanel')).toBeVisible();
 
@@ -71,18 +48,6 @@ test('MPC Studio raï workflow works in desktop and mobile browsers',async({page
   await expect(page.locator('#soniloOpenBtn')).toBeVisible();
   await page.locator('#soniloOpenBtn').click();
   await expect(page.locator('#soniloDialog')).toHaveAttribute('open','');
-  if(testInfo.project.name==='chromium-mobile'){
-    const modalGeometry=await page.evaluate(()=>{
-      const describe=id=>{
-        const el=document.getElementById(id),r=el&&el.getBoundingClientRect();
-        if(!r)return null;
-        const cx=r.left+r.width/2,cy=r.top+r.height/2,hit=document.elementFromPoint(cx,cy),cs=getComputedStyle(el);
-        return {rect:{x:r.x,y:r.y,w:r.width,h:r.height},position:cs.position,zIndex:cs.zIndex,pointerEvents:cs.pointerEvents,hit:hit&&{tag:hit.tagName,id:hit.id,cls:hit.className}};
-      };
-      return {close:describe('soniloClose'),dialog:describe('soniloDialog'),card:(()=>{const el=document.querySelector('#soniloDialog .soniloCard'),r=el.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}})(),head:(()=>{const el=document.querySelector('#soniloDialog .dialogHead'),r=el.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}})()};
-    });
-    console.log('MOBILE_SONILO_CLOSE_GEOMETRY '+JSON.stringify(modalGeometry));
-  }
   await page.locator('#soniloClose').click();
 
   await expect(page.locator('#vstOpenBtn')).toBeVisible();
