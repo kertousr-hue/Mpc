@@ -75,3 +75,13 @@ class VstBridgeCoreTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class HandlerIntegrationStaticTests(unittest.TestCase):
+    def test_api_responses_use_handler_security_headers(self):
+        source = (Path(__file__).resolve().parents[1] / "vst_bridge.py").read_text(encoding="utf-8")
+        # The override itself must call super(), but response methods must route through self.end_headers().
+        self.assertIn("def end_headers(self):", source)
+        response_section = source.split("def _json(self, status: int, data: dict):", 1)[1]
+        self.assertNotIn("super().end_headers()", response_section)
+        self.assertGreaterEqual(response_section.count("self.end_headers()"), 3)
