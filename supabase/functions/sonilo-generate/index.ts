@@ -78,43 +78,6 @@ async function reserveQuota(req: Request, kind: 'music' | 'sfx') {
   }
 }
 
-async function releaseReservation(req: Request, reservationId: number) {
-  const ctx = databaseContext(req)
-  if (!ctx.url || !ctx.apikey || !ctx.authorization || !Number.isFinite(reservationId) || reservationId <= 0) return false
-  try {
-    const response = await fetch(`${ctx.url}/rest/v1/sonilo_generation_log?id=eq.${encodeURIComponent(String(reservationId))}`, {
-      method: 'DELETE',
-      headers: {
-        Authorization: ctx.authorization,
-        apikey: ctx.apikey,
-        Prefer: 'return=minimal',
-      },
-    })
-    return response.ok
-  } catch (_) {
-    return false
-  }
-}
-
-async function recordTask(req: Request, taskId: string, kind: 'music' | 'sfx') {
-  const ctx = databaseContext(req)
-  if (!ctx.url || !ctx.apikey || !ctx.authorization) return false
-  try {
-    const response = await fetch(`${ctx.url}/rest/v1/rpc/record_sonilo_task`, {
-      method: 'POST',
-      headers: {
-        Authorization: ctx.authorization,
-        apikey: ctx.apikey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ p_task_id: taskId, p_kind: kind }),
-    })
-    return response.ok
-  } catch (_) {
-    return false
-  }
-}
-
 function serviceRoleKey() {
   return Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 }
