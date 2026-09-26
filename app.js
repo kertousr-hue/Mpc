@@ -202,7 +202,7 @@ function scheduler(){
 function startPlayback(){ensureAudio();if(isPlaying)return;if(transportMode==='song')prepareSong();isPlaying=true;playStep=0;nextStepTime=audioCtx.currentTime+.05;timer=setInterval(scheduler,25);$('playBtn').classList.add('active');status(recArmed?'Enregistrement…':(transportMode==='song'?'Lecture chanson':'Lecture'))}
 function stopPlayback(){isPlaying=false;if(timer)clearInterval(timer);timer=null;playStep=0;stopAllSources();$('playBtn').classList.remove('active');renderSteps();status('Arrêt')}
 
-async function decodeBlob(blob){ensureAudio();return await audioCtx.decodeAudioData((await blob.arrayBuffer()).slice(0))}
+async function decodeBlob(blob){ensureAudio();if(!blob||typeof blob.size!=='number')throw new Error('Fichier audio invalide');if(blob.size>50*1024*1024)throw new Error('Fichier audio trop volumineux (50 Mo maximum)');return await audioCtx.decodeAudioData((await blob.arrayBuffer()).slice(0))}
 async function materializeFactory(p=selected()){
  if(!p||p.sample?.kind!=='factory')return p?.buffer||null;
  if(p.materializing)return await p.materializing;
@@ -276,7 +276,8 @@ function audioBufferToWav(buffer){
 }
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 
-function getSbConfig(){const stored=JSON.parse(localStorage.getItem('mpc-supabase')||'{}'),base=window.MPC_SUPABASE_CONFIG||{};return {url:stored.url||base.url||'',key:stored.key||base.publishableKey||''}}
+function sbProjectRef(url){try{return new URL(String(url||'')).hostname.split('.')[0]}catch(e){return ''}}
+function getSbConfig(){const stored=JSON.parse(localStorage.getItem('mpc-supabase')||'{}'),base=window.MPC_SUPABASE_CONFIG||{};if(base.url&&base.publishableKey){if(stored.url&&sbProjectRef(stored.url)!==sbProjectRef(base.url))localStorage.removeItem('mpc-supabase');return {url:base.url,key:base.publishableKey}}return {url:stored.url||'',key:stored.key||''}}
 function safeKey(k){return /^sb_publishable_/.test(k)||/^eyJ/.test(k)}
 async function initSupabase(){
  const c=getSbConfig();$('sbUrl').value=c.url;$('sbKey').value=c.key;if(!c.url||!safeKey(c.key)||!window.supabase){$('authState').textContent='Supabase non configuré';return}
@@ -343,5 +344,5 @@ function bind(){
  $('menuBtn').onclick=openMainMenu;
  window.addEventListener('keydown',e=>{if(e.target.matches('input,select'))return;const map='1234qwerasdfzxcv',i=map.indexOf(e.key.toLowerCase());if(i>=0)playPad(padId(bank,i));if(e.code==='Space'){e.preventDefault();isPlaying?stopPlayback():startPlayback()}});
 }
-buildLibrary();renderAll();bind();document.body.dataset.mode=currentMode;initSupabase();if(localStorage.getItem('mpc-studio-project'))loadLocal();
+buildLibrary();renderAll();bind();document.body.dataset.mode=currentMode;initSupabase();if(localStorage.getItem('mpc-studio-project'))setTimeout(()=>loadLocal(),0);
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
