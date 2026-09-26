@@ -2,7 +2,7 @@ name: Vérification MPC Studio
 
 on:
   push:
-    branches: [main, feat/groovebox-v2]
+    branches: [main]
   pull_request:
 
 jobs:
@@ -11,14 +11,20 @@ jobs:
     steps:
       - name: Récupérer le dépôt
         uses: actions/checkout@v4
+
       - name: Installer Node
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+
+      - name: Installer les dépendances JavaScript
+        run: npm install --no-audit --no-fund
+
       - name: Vérifier JavaScript
         run: |
           node --check app.js
           node --check rai-factory.js
+          node --check cloud-project-core.js
           node --check sequencer-core.js
           node --check sequencer-v2.js
           node --check mixer-core.js
@@ -46,18 +52,30 @@ jobs:
           node --check virtualdj.js
           node --check virtualdj-files.js
           node --check virtualdj-catalogs.js
+          node --check playwright.config.js
+
       - name: Exécuter les tests JavaScript
         run: npm test
+
       - name: Vérifier Python
         run: |
           python -m unittest discover -s tests -p 'test_vst_bridge_core.py' -v
           python -m py_compile virtualdj_bridge.py
           python -m py_compile virtualdj_bridge_v2.py
           python -m py_compile vst_bridge.py
+          python -m py_compile vst_bridge_core.py
+
+      - name: Installer Chromium Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Tester l'application dans Chromium desktop et mobile
+        run: npm run test:browser
+
       - name: Vérifier les fichiers essentiels
         run: |
           test -f index.html
           test -f rai-factory.js
+          test -f cloud-project-core.js
           test -f styles.css
           test -f app.js
           test -f sequencer-core.js
@@ -93,9 +111,12 @@ jobs:
           test -f virtualdj_bridge.py
           test -f virtualdj_bridge_v2.py
           test -f vst_bridge.py
+          test -f vst_bridge_core.py
           test -f start_virtualdj_bridge.bat
           test -f start_vst_bridge.bat
           test -f VST_PC.md
+          test -f playwright.config.js
+          test -f tests/browser-smoke.spec.js
           test -f icons/icon-192.png
           test -f icons/icon-512.png
           test -f supabase-schema.sql
@@ -104,8 +125,10 @@ jobs:
           test -f sw.js
           test -f supabase/functions/sonilo-generate/index.ts
           test -f supabase/functions/sonilo-task/index.ts
+
       - name: Vérifier le manifeste PWA
         run: node -e "JSON.parse(require('fs').readFileSync('manifest.webmanifest','utf8')); console.log('manifest OK')"
+
       - name: Vérifier qu'aucun secret Sonilo n'est commité
         run: |
           if grep -R -n -E "['\"\x60]sk[-_][A-Za-z0-9]{8,}" --exclude-dir=.git .; then
