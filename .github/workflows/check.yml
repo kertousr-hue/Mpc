@@ -2,7 +2,7 @@ name: Vérification MPC Studio
 
 on:
   push:
-    branches: [main]
+    branches: [main, feat/groovebox-v2]
   pull_request:
 
 jobs:
@@ -20,11 +20,18 @@ jobs:
           node --check app.js
           node --check sequencer-core.js
           node --check sequencer-v2.js
-          node --check automation.js
-          node --check automation-core.js
-          node --check audio-engine-v2.js
-          node --check fx-rack.js
           node --check mixer-core.js
+          node --check fx-rack.js
+          node --check audio-engine-v2.js
+          node --check automation-core.js
+          node --check automation.js
+          node --check midi-core.js
+          node --check midi.js
+          node --check performance-v2.js
+          node --check export-v2.js
+          node --check sonilo-core.js
+          node --check sonilo.js
+          node --check vst-bridge.js
           node --check api-services.js
           node --check api-dj.js
           node --check pwa.js
@@ -44,42 +51,61 @@ jobs:
         run: |
           python -m py_compile virtualdj_bridge.py
           python -m py_compile virtualdj_bridge_v2.py
+          python -m py_compile vst_bridge.py
       - name: Vérifier les fichiers essentiels
         run: |
           test -f index.html
-          test -f automation.js
-          test -f automation-core.js
-          test -f audio-engine-v2.js
-          test -f fx-rack.js
-          test -f mixer-core.js
-          test -f sequencer-v2.js
-          test -f sequencer-core.js
           test -f styles.css
+          test -f app.js
+          test -f sequencer-core.js
+          test -f sequencer-v2.js
+          test -f mixer-core.js
+          test -f fx-rack.js
+          test -f audio-engine-v2.js
+          test -f automation-core.js
+          test -f automation.js
+          test -f midi-core.js
+          test -f midi.js
+          test -f performance-v2.js
+          test -f export-v2.js
+          test -f sonilo-core.js
+          test -f sonilo.js
+          test -f vst-bridge.js
           test -f api-services.js
           test -f api-dj.js
-          test -f api-dj.css
           test -f pwa.js
           test -f audio-tap.js
           test -f dj.js
-          test -f dj.css
           test -f dj-pad-options.js
           test -f dj-sync.js
           test -f dj-live-layer.js
           test -f dj-recorder.js
           test -f dj-android-recorder.js
           test -f virtualdj.js
-          test -f virtualdj.css
           test -f virtualdj-files.js
           test -f virtualdj-catalogs.js
+          test -f api-dj.css
+          test -f dj.css
+          test -f virtualdj.css
           test -f virtualdj_bridge.py
           test -f virtualdj_bridge_v2.py
+          test -f vst_bridge.py
           test -f start_virtualdj_bridge.bat
+          test -f start_vst_bridge.bat
+          test -f VST_PC.md
           test -f icons/icon-192.png
           test -f icons/icon-512.png
           test -f supabase-schema.sql
           test -f supabase-config.js
           test -f manifest.webmanifest
           test -f sw.js
-
+          test -f supabase/functions/sonilo-generate/index.ts
+          test -f supabase/functions/sonilo-task/index.ts
       - name: Vérifier le manifeste PWA
         run: node -e "JSON.parse(require('fs').readFileSync('manifest.webmanifest','utf8')); console.log('manifest OK')"
+      - name: Vérifier qu'aucun secret Sonilo n'est commité
+        run: |
+          if grep -R -n -E "['\"\x60]sk[-_][A-Za-z0-9]{8,}" --exclude-dir=.git .; then
+            echo "Secret Sonilo potentiel détecté"
+            exit 1
+          fi
