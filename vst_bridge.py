@@ -136,7 +136,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(body)))
-        super().end_headers()
+        self.end_headers()
         self.wfile.write(body)
 
     def _auth(self) -> tuple[bool, int]:
@@ -168,7 +168,7 @@ class Handler(SimpleHTTPRequestHandler):
         if cors:
             self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
             self.send_header("Access-Control-Allow-Headers", "Content-Type, X-MPC-Token")
-        super().end_headers()
+        self.end_headers()
 
     def do_GET(self):
         if urlparse(self.path).path != "/api/vst/plugins":
@@ -225,7 +225,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Content-Type", "audio/wav")
         self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(result)))
-        super().end_headers()
+        self.end_headers()
         self.wfile.write(result)
 
     def log_message(self, fmt, *args):
