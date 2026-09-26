@@ -23,3 +23,12 @@ test('Sonilo edge functions use only canonical runtime host',()=>{
   assert.match(src,/tasks\//);
   assert.doesNotMatch(src,/platform\.sonilo\.com/);
 });
+
+
+test('Sonilo generate reserves a server-side quota before upstream generation',()=>{
+  const gen=read('supabase/functions/sonilo-generate/index.ts');
+  assert.match(gen,/reserve_sonilo_generation/);
+  assert.match(gen,/rate_guard_unavailable/);
+  assert.match(gen,/rate_limited/);
+  assert.match(gen,/SUPABASE_ANON_KEY|SUPABASE_PUBLISHABLE_KEYS/);
+});
