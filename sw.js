@@ -1,9 +1,9 @@
-const CACHE = 'mpc-studio-v23-extended-pad-kits';
+const CACHE = 'mpc-studio-v24-groovebox-v2';
 const SHELL = [
   './',
   './index.html',
   './styles.css',
-  './app.js',
+  './app.js',\n  './sequencer-core.js',\n  './sequencer-v2.js',
   './api-services.js',
   './api-dj.js',
   './api-dj.css',
