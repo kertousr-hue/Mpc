@@ -1,18 +1,15 @@
 const $=id=>document.getElementById(id);
 const BANKS=['A','B','C','D'], STEPS=16, PATTERNS=8;
 const RAI_FACTORY=window.MPCRaiFactory;
+const REAL_RAI_KIT=window.MPCRealRaiKit;
 const CLOUD_PROJECT=window.MPCCloudProjectCore;
 if(!RAI_FACTORY)throw new Error('MPCRaiFactory requis');
+if(!REAL_RAI_KIT)throw new Error('MPCRealRaiKit requis');
 if(!CLOUD_PROJECT)throw new Error('MPCCloudProjectCore requis');
 const cloudProjectState=CLOUD_PROJECT.createCloudProjectState();
 const FACTORY_SPEC=RAI_FACTORY.FACTORY_SPEC;
 const FACTORY=RAI_FACTORY.buildFactory();
 const DEFAULT_NAMES=RAI_FACTORY.bankIndices('A').map(i=>FACTORY[i].name);
-const ORIENTAL_SOURCES=[
- {instrument:'Darbuka',count:8,url:'https://upload.wikimedia.org/wikipedia/commons/e/ed/Darbuka.ogg',source:'https://commons.wikimedia.org/wiki/File:Darbuka.ogg',creator:'Cassa342',license:'CC BY-SA 4.0'},
- {instrument:'Riq',count:4,url:'https://upload.wikimedia.org/wikipedia/commons/d/db/Riq_demo.ogg',source:'https://commons.wikimedia.org/wiki/File:Riq_demo.ogg',creator:'Derbake',license:'CC BY-SA 4.0'},
- {instrument:'Bendir',count:4,url:'https://upload.wikimedia.org/wikipedia/commons/e/e4/T%C3%BCrk_Aksa%C4%9F%C4%B1_%2890_bpm%29.ogg',source:'https://commons.wikimedia.org/wiki/File:T%C3%BCrk_Aksa%C4%9F%C4%B1_(90_bpm).ogg',creator:'Anomyq',license:'CC0 1.0'}
-];
 
 let audioCtx=null, masterGain=null, isPlaying=false, recArmed=false, metro=false, fullLevel=false, noteRepeat=false;
 let bank='A', selectedPad='A01', selectedTrack=0, patternIndex=0, playStep=0, timer=null, nextStepTime=0, repeatDiv=4;
@@ -208,19 +205,38 @@ async function fetchOrientalSource(src){
  const r=await fetch(src.url,{mode:'cors',cache:'force-cache'});if(!r.ok)throw new Error(src.instrument+' HTTP '+r.status);const blob=await r.blob(),buffer=await decodeBlob(blob);return {src,buffer}
 }
 async function loadOrientalKit(button=null){
- ensureAudio();const targetBank=bank;if(button)button.disabled=true;status('Kit raï réel : téléchargement des enregistrements…');
+ ensureAudio();const targetBank=bank;
+ if(!window.confirm('Remplacer les 16 pads de la banque '+targetBank+' par le KIT RAÏ RÉEL+ ?'))return;
+ if(button)button.disabled=true;status('KIT RAÏ RÉEL+ : téléchargement des vrais enregistrements…');
  try{
-   const loaded=[];for(const src of ORIENTAL_SOURCES){status('Kit raï : '+src.instrument+'…');loaded.push(await fetchOrientalSource(src))}
-   let slot=0;
-   for(const item of loaded){const times=detectTransientTimes(item.buffer,item.src.count);for(let n=0;n<item.src.count&&slot<16;n++,slot++){const hit=cutHit(item.buffer,times[n]??0,times[n+1],item.src.instrument==='Riq'?.65:.85),blob=new Blob([audioBufferToWav(hit)],{type:'audio/wav'}),id=padId(targetBank,slot),p=pads[id];Object.assign(p,{name:item.src.instrument+' '+String(n+1).padStart(2,'0'),sample:{kind:'user'},buffer:hit,userBlob:blob,cloudPath:null,start:0,end:1,pitch:0,gain:1,muted:false,loop:false,externalMeta:{provider:'Wikimedia Commons',instrument:item.src.instrument,source:item.src.source,license:item.src.license,creator:item.src.creator,realRecording:true}})}}
-   bank=targetBank;selectedPad=padId(bank,0);selectedTrack=0;renderAll();status('Kit RAÏ RÉEL chargé : Darbuka · Riq · Bendir sur banque '+bank)
- }catch(e){status('Kit raï : '+e.message)}
+   const prepared=new Map();
+   for(const src of REAL_RAI_KIT.SOURCES){
+     status('KIT RAÏ RÉEL+ : '+src.instrument+'…');
+     const item=await fetchOrientalSource(src),times=detectTransientTimes(item.buffer,src.count),hits=[];
+     for(let n=0;n<src.count;n++){
+       const hit=cutHit(item.buffer,times[n]??0,times[n+1],src.maxDur||.85);
+       hits.push({buffer:hit,blob:new Blob([audioBufferToWav(hit)],{type:'audio/wav'})});
+     }
+     prepared.set(src.id,{src,hits});
+   }
+   const assignments=REAL_RAI_KIT.OPEN_LAYOUT.map((slot,i)=>{
+     const item=prepared.get(slot.sourceId),take=item&&item.hits[slot.take];
+     if(!item||!take)throw new Error('Sample réel introuvable pour '+slot.name);
+     return {slot,i,item,take};
+   });
+   for(const a of assignments){
+     const id=padId(targetBank,a.i),p=pads[id],src=a.item.src;
+     Object.assign(p,{name:a.slot.name,sample:{kind:'user'},buffer:a.take.buffer,userBlob:a.take.blob,cloudPath:null,start:0,end:1,pitch:0,gain:1,muted:false,loop:false,externalMeta:{provider:src.provider,instrument:a.slot.instrument,source:src.source,license:src.license,creator:src.creator,realRecording:true}});
+   }
+   bank=targetBank;selectedPad=padId(bank,0);selectedTrack=0;renderAll();
+   status('KIT RAÏ RÉEL+ chargé : Darbuka · Riq · Bendir · Accordéon · Trompette · Guitare · banque '+bank)
+ }catch(e){status('Kit raï réel+ : '+e.message)}
  finally{if(button)button.disabled=false}
 }
 
 function loadFactoryKit(indices){const list=Array.isArray(indices)&&indices.length===16?indices:RAI_FACTORY.bankIndices(bank);for(let i=0;i<16;i++){const factoryIndex=Number(list[i]),s=FACTORY[factoryIndex],p=pads[padId(bank,i)];if(!s)continue;p.sample={kind:'factory',factoryIndex};p.name=s.name;p.buffer=null;p.userBlob=null;p.cloudPath=null;p.externalMeta=null}renderAll();status('Kit chargé sur banque '+bank)}
 function renderKitBrowser(){const root=$('sampleList');$('categories').innerHTML='';root.innerHTML='';
- const oriental=document.createElement('div');oriental.className='sample realKit';oriental.innerHTML=`<div class="sampleWave"></div><div><strong>🥁 KIT RAÏ RÉEL</strong><small>Darbuka · Riq · Bendir · 16 vrais hits · banque ${bank}</small></div><button>CHARGER</button>`;const ob=oriental.querySelector('button');ob.onclick=()=>loadOrientalKit(ob);root.appendChild(oriental);
+ const oriental=document.createElement('div');oriental.className='sample realKit';oriental.innerHTML=`<div class="sampleWave"></div><div><strong>🥁 KIT RAÏ RÉEL+</strong><small>Darbuka · Riq · Bendir · Accordéon · Trompette · Guitare · 16 vrais sons · banque ${bank}<br>Gasba + Guellal : banque licenciée requise</small></div><button>CHARGER</button>`;const ob=oriental.querySelector('button');ob.onclick=()=>loadOrientalKit(ob);root.appendChild(oriental);
  RAI_FACTORY.RAI_KITS.forEach(kit=>{const row=document.createElement('div');row.className='sample';row.innerHTML=`<div class="sampleWave"></div><div><strong>${kit.name}</strong><small>${kit.description} · 16 sons raï · banque ${bank}</small></div><button>CHARGER</button>`;row.querySelector('button').onclick=()=>loadFactoryKit(kit.indices);root.appendChild(row)})}
 function renderProjectBrowser(){const root=$('sampleList');$('categories').innerHTML='';root.innerHTML='';const has=!!localStorage.getItem('mpc-studio-project');const row=document.createElement('div');row.className='sample';row.innerHTML=`<div class="sampleWave"></div><div><strong>Projet local</strong><small>${has?'Sauvegarde disponible':'Aucune sauvegarde'}</small></div><button ${has?'':'disabled'}>OUVRIR</button>`;if(has)row.querySelector('button').onclick=loadLocal;root.appendChild(row)}
 function openMainMenu(){let d=$('mainMenuDialog');if(!d){d=document.createElement('dialog');d.id='mainMenuDialog';d.innerHTML='<div class="cloudCard"><div class="dialogHead"><div><small>MPC STUDIO</small><h2>Menu</h2></div><button id="mainMenuClose">✕</button></div><button id="menuSave">💾 SAUVER LOCAL</button><button id="menuLoad">📂 OUVRIR LOCAL</button><button id="menuStop">■ STOP AUDIO</button><button id="menuCloud">☁ SUPABASE</button></div>';document.body.appendChild(d);$('mainMenuClose').onclick=()=>d.close();$('menuSave').onclick=saveLocal;$('menuLoad').onclick=loadLocal;$('menuStop').onclick=stopPlayback;$('menuCloud').onclick=()=>{$('cloudDialog').showModal();cloudRefresh()}}if(!d.open)d.showModal()}

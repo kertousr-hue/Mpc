@@ -15,11 +15,20 @@ function localAssetsFromHtml(html){
   return [...new Set(out)];
 }
 
-test('PWA cache is bumped to Audit 5 and contains every local startup asset',()=>{
+test('PWA cache is bumped for Raï Real+ and contains every local startup asset',()=>{
   const html=fs.readFileSync('index.html','utf8');
   const sw=fs.readFileSync('sw.js','utf8');
-  assert.match(sw,/const CACHE = ['"]mpc-studio-v30-audit5['"]/);
+  assert.match(sw,/const CACHE = ['"]mpc-studio-v31-rai-real-plus['"]/);
   const assets=localAssetsFromHtml(html);
   assert.ok(assets.includes('./cloud-project-core.js'));
+  assert.ok(assets.includes('./rai-real-kit.js'));
   for(const asset of assets) assert.ok(sw.includes(JSON.stringify(asset)), 'missing from SHELL: '+asset);
+});
+
+
+test('PWA source files do not contain injected literal newline escapes between assets',()=>{
+  const html=fs.readFileSync('index.html','utf8');
+  const sw=fs.readFileSync('sw.js','utf8');
+  assert.doesNotMatch(html,/<\/script>\\n<script/i);
+  assert.doesNotMatch(sw,/,\\n\s*["']/);
 });

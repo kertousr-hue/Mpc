@@ -9,5 +9,6 @@ test('CI installs Playwright and runs desktop/mobile browser smoke',()=>{
   assert.match(workflow,/npm run test:browser/);
   assert.match(workflow,/node --check cloud-project-core\.js/);
   assert.match(workflow,/node --check playwright\.config\.js/);
+  assert.match(workflow,/node --check sw\.js/);
   assert.match(workflow,/python -m py_compile vst_bridge_core\.py/);
 });
